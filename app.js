@@ -3,6 +3,12 @@ const HEADPICS=[['ANDREW','902000006'],['KELLY','902000007'],['OLIVA','902000008
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\.[^.]+$/,'').replace(/\b(LOGO|TEAM|CLAN|ESPORTS?|FREE|FIRE|FF)\b/g,' ').replace(/[^A-Z0-9]+/g,' ').trim();
 const safe=s=>(String(s||'logo').trim().replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').replace(/\s+/g,'_')||'logo');
+const MEMORY_KEY='ff_logo_memory_v2';
+let logoMemory=(()=>{try{return JSON.parse(localStorage.getItem(MEMORY_KEY)||'[]')}catch{return[]}})();
+function imageHash(url){return new Promise(resolve=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas'),ctx=c.getContext('2d',{willReadFrequently:true});c.width=9;c.height=8;ctx.drawImage(img,0,0,9,8);const d=ctx.getImageData(0,0,9,8).data;let bits='',hex='';for(let y=0;y<8;y++)for(let x=0;x<8;x++){const a=(d[(y*9+x)*4]+d[(y*9+x)*4+1]+d[(y*9+x)*4+2])/3,b=(d[(y*9+x+1)*4]+d[(y*9+x+1)*4+1]+d[(y*9+x+1)*4+2])/3;bits+=a>b?'1':'0'}for(let i=0;i<bits.length;i+=4)hex+=parseInt(bits.slice(i,i+4),2).toString(16);resolve(hex)};img.onerror=()=>resolve('');img.src=url})}
+function hashDistance(a,b){if(!a||!b||a.length!==b.length)return 99;let n=0;for(let i=0;i<a.length;i++){let x=parseInt(a[i],16)^parseInt(b[i],16);while(x){n+=x&1;x>>=1}}return n}
+function learnedFor(file){const exact=logoMemory.find(m=>m.fileKey===norm(file.name));if(exact)return exact;let best=null,score=99;for(const m of logoMemory){const d=hashDistance(file.hash,m.hash);if(d<score){score=d;best=m}}return score<=8?best:null}
+async function rememberLogo(team,file){if(!file||!team.id)return;if(!file.hash)file.hash=await imageHash(file.url);const item={fileKey:norm(file.name),hash:file.hash,teamKey:norm(team.team),id:team.id,avatar:team.avatar||'',savedAt:Date.now()};logoMemory=logoMemory.filter(m=>m.fileKey!==item.fileKey&&m.hash!==item.hash);logoMemory.unshift(item);logoMemory=logoMemory.slice(0,500);localStorage.setItem(MEMORY_KEY,JSON.stringify(logoMemory))}
 
 function parseTeams(text,append=false){
   const base=append?teams.length:0;
@@ -18,20 +24,20 @@ function parseTeams(text,append=false){
 }
 
 async function addFiles(items){
-  for(const file of items){if(!/^image\/(png|jpeg|webp)$/i.test(file.type))continue;logos.push({file,name:file.name,url:URL.createObjectURL(file),key:crypto.randomUUID()})}
+  for(const file of items){if(!/^image\/(png|jpeg|webp)$/i.test(file.type))continue;const obj={file,name:file.name,url:URL.createObjectURL(file),key:crypto.randomUUID(),hash:''};obj.hash=await imageHash(obj.url);logos.push(obj)}
   matchNames();
 }
 
 function matchNames(){
   const free=logos.filter(f=>!teams.some(t=>t.file===f));
-  for(const team of teams){if(team.file)continue;const keys=[norm(team.team),norm(team.avatar),String(team.id||'')].filter(Boolean);const found=free.find(f=>keys.some(k=>norm(f.name)===k||norm(f.name).includes(k)||k.includes(norm(f.name))));if(found){team.file=found;applyHeadpics(team,found);free.splice(free.indexOf(found),1)}}
+  for(const team of teams){if(team.file)continue;const keys=[norm(team.team),norm(team.avatar),String(team.id||'')].filter(Boolean);const found=free.find(f=>{const learned=learnedFor(f);return learned&&(learned.teamKey===norm(team.team)||learned.id===team.id)})||free.find(f=>keys.some(k=>norm(f.name)===k||norm(f.name).includes(k)||k.includes(norm(f.name))));if(found){const learned=learnedFor(found);team.file=found;if(learned){team.id=learned.id;team.avatar=learned.avatar}else applyHeadpics(team,found);free.splice(free.indexOf(found),1)}}
   render();
 }
 
 function applyHeadpics(team,file){const selected=HEADPICS.find(([,id])=>id===team.id);if(selected){team.avatar=selected[0];return selected}const values=[team.team,team.avatar,file?.name].map(norm);const found=HEADPICS.find(([name,id])=>values.some(v=>v===norm(name)||v.includes(norm(name))||v.includes(id)));if(found){team.avatar=found[0];team.id=found[1]}return found}
-function assign(key,index){if(index==='')return;const file=logos.find(x=>x.key===key);if(file){const row=Number(index),team=teams[row];team.file=file;if(!applyHeadpics(team,file)&&HEADPICS[row]){team.avatar=HEADPICS[row][0];team.id=HEADPICS[row][1]}render()}}
-async function pickForTeam(index,file){if(!file||!/^image\/(png|jpeg|webp)$/i.test(file.type))return;const obj={file,name:file.name,url:URL.createObjectURL(file),key:crypto.randomUUID()};logos.push(obj);teams[index].file=obj;if(!applyHeadpics(teams[index],obj)&&HEADPICS[index]){teams[index].avatar=HEADPICS[index][0];teams[index].id=HEADPICS[index][1]}render()}
-function setHeadpics(index,id){const item=HEADPICS.find(x=>x[1]===id);teams[index].id=id;teams[index].avatar=item?.[0]||'';render()}
+async function assign(key,index){if(index==='')return;const file=logos.find(x=>x.key===key);if(file){const row=Number(index),team=teams[row];team.file=file;if(!applyHeadpics(team,file)&&HEADPICS[row]){team.avatar=HEADPICS[row][0];team.id=HEADPICS[row][1]}await rememberLogo(team,file);render()}}
+async function pickForTeam(index,file){if(!file||!/^image\/(png|jpeg|webp)$/i.test(file.type))return;const obj={file,name:file.name,url:URL.createObjectURL(file),key:crypto.randomUUID(),hash:''};obj.hash=await imageHash(obj.url);logos.push(obj);teams[index].file=obj;if(!applyHeadpics(teams[index],obj)&&HEADPICS[index]){teams[index].avatar=HEADPICS[index][0];teams[index].id=HEADPICS[index][1]}await rememberLogo(teams[index],obj);render()}
+async function setHeadpics(index,id){const item=HEADPICS.find(x=>x[1]===id);teams[index].id=id;teams[index].avatar=item?.[0]||'';if(teams[index].file)await rememberLogo(teams[index],teams[index].file);render()}
 function detach(index){teams[index].file=null;render()}
 
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)})}
@@ -47,7 +53,7 @@ async function checkAi(){try{const r=await fetch('/api/health'),d=await r.json()
 function localAutoMatch(){
   const free=logos.filter(f=>!teams.some(t=>t.file===f));let attached=0,numbered=0;
   for(let i=0;i<teams.length;i++){const team=teams[i];if(!team.file&&free.length){const keys=[norm(team.team),norm(team.avatar),String(team.id||'')].filter(Boolean);let pos=free.findIndex(f=>keys.some(k=>norm(f.name)===k||norm(f.name).includes(k)||k.includes(norm(f.name))));if(pos<0)pos=0;team.file=free.splice(pos,1)[0];attached++}if(team.file&&!HEADPICS.some(([,id])=>id===team.id)&&HEADPICS[i]){team.avatar=HEADPICS[i][0];team.id=HEADPICS[i][1];numbered++}}
-  render();$('bar').style.width='100%';$('aiStatus').textContent=`AI cục bộ miễn phí: đã gắn ${attached} logo và ${numbered} HEADPICS ID theo thứ tự bảng.`;
+  teams.filter(t=>t.file&&t.id).forEach(t=>rememberLogo(t,t.file));render();$('bar').style.width='100%';$('aiStatus').textContent=`AI cục bộ: đã gắn ${attached} logo, ${numbered} HEADPICS ID và đang nhớ ${logoMemory.length} mẫu logo.`;
 }
 
 function render(){
@@ -85,6 +91,6 @@ function renderHeadpics(){
 render=renderHeadpics;
 
 teams=HEADPICS.map(([avatar,id],i)=>({no:String(i+1),team:avatar,avatar,id,file:null}));
-$('aiMatch').onclick=localAutoMatch;$('aiMatch').disabled=false;$('aiStatus').textContent='AI cục bộ miễn phí · không cần API key hoặc thanh toán.';
+$('aiMatch').onclick=localAutoMatch;$('aiMatch').disabled=false;$('aiStatus').textContent=`AI cục bộ miễn phí · đang nhớ ${logoMemory.length} mẫu logo trên thiết bị này.`;
 
 $('parse').onclick=()=>parseTeams($('paste').value);$('append').onclick=()=>parseTeams($('paste').value,true);$('clear').onclick=()=>{if(confirm('Xóa toàn bộ bảng team?')){teams=[];render()}};$('match').onclick=matchNames;$('zip').onclick=downloadZip;$('files').onchange=e=>addFiles([...e.target.files]);const drop=$('drop');drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')};drop.ondragleave=()=>drop.classList.remove('drag');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');addFiles([...e.dataTransfer.files])};render();
