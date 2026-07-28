@@ -96,6 +96,7 @@ globalThis.__headpicsTest = {
   hasUniqueHeadpicsId,
   parseTeams,
   applyHeadpics,
+  applyHeadpicsByOrder,
   assign,
   pickForTeam,
   setHeadpics,
@@ -181,11 +182,13 @@ assert.equal(api.getTeams()[0].id, "");
 reset([team("EOP")], [logo("random.png", "random")]);
 api.assign("random", "0");
 assert.equal(api.getTeams()[0].file.name, "random.png");
-assert.equal(api.getTeams()[0].id, "");
+assert.equal(api.getTeams()[0].id, api.HEADPICS[0][1]);
+assert.equal(api.getTeams()[0].headpicsSource, "order");
 
 reset([team("EOP")]);
 api.pickForTeam(0, { name: "random.png", type: "image/png" });
-assert.equal(api.getTeams()[0].id, "");
+assert.equal(api.getTeams()[0].id, api.HEADPICS[0][1]);
+assert.equal(api.getTeams()[0].headpicsSource, "order");
 
 // Tên file rõ ràng được phép gán; tên team dài chỉ chứa tên nhân vật thì không.
 reset([team("EOP")]);
@@ -301,10 +304,23 @@ assert.equal(api.setHeadpics(1, "902000007"), true);
 assert.equal(api.getTeams()[1].id, "902000007");
 assert.equal(api.getTeams()[1].headpicsSource, "manual");
 
-// Tự gắn an toàn không lấy logo đầu tiên và không cấp ID theo số thứ tự.
+// Tự gắn logo còn lại và HEADPICS theo thứ tự dòng như phiên bản cũ.
 reset([team("EOP")], [logo("unknown.png", "unknown")]);
 api.localAutoMatch();
-assert.equal(api.getTeams()[0].file, null);
-assert.equal(api.getTeams()[0].id, "");
+assert.equal(api.getTeams()[0].file.key, "unknown");
+assert.equal(api.getTeams()[0].id, api.HEADPICS[0][1]);
+assert.equal(api.getTeams()[0].headpicsSource, "order");
+
+reset(
+  [team("EOP"), team("HQ"), team("WAG")],
+  [logo("first.png", "first"), logo("second.png", "second"), logo("third.png", "third")],
+);
+api.localAutoMatch();
+for (const [index, currentTeam] of api.getTeams().entries()) {
+  assert.equal(currentTeam.file.key, ["first", "second", "third"][index]);
+  assert.equal(currentTeam.id, api.HEADPICS[index][1]);
+  assert.equal(currentTeam.avatar, api.HEADPICS[index][0]);
+  assert.equal(currentTeam.headpicsSource, "order");
+}
 
 console.log("headpics-id tests passed");

@@ -98,8 +98,17 @@ function applyHeadpics(team,file){
   team.avatar=found[0];team.id=found[1];team.headpicsSource=filenameMatch?.[1]===found[1]?'filename':avatarMatch?.[1]===found[1]?'input-avatar':'input-name';team.headpicsConflict='';
   return found;
 }
-function assign(key,index){if(index==='')return;const file=logos.find(x=>x.key===key),row=Number(index),team=teams[row];if(!file||!team||team.file||teams.some(t=>t.file===file)){render();return}team.file=file;applyHeadpics(team,file);render()}
-function pickForTeam(index,file){if(!file||!/^image\/(png|jpeg|webp)$/i.test(file.type))return;const obj={file,name:file.name,url:URL.createObjectURL(file),key:crypto.randomUUID()};logos.push(obj);teams[index].file=obj;applyHeadpics(teams[index],obj);render()}
+function applyHeadpicsByOrder(team,index){
+  if(!team)return null;
+  const selected=headpicsById(team.id);
+  if(selected){team.avatar=selected[0];return selected}
+  const ordered=HEADPICS[index];
+  if(!ordered)return null;
+  team.avatar=ordered[0];team.id=ordered[1];team.headpicsSource='order';team.headpicsConflict='';
+  return ordered;
+}
+function assign(key,index){if(index==='')return;const file=logos.find(x=>x.key===key),row=Number(index),team=teams[row];if(!file||!team||team.file||teams.some(t=>t.file===file)){render();return}team.file=file;if(!applyHeadpics(team,file))applyHeadpicsByOrder(team,row);render()}
+function pickForTeam(index,file){if(!file||!/^image\/(png|jpeg|webp)$/i.test(file.type))return;const obj={file,name:file.name,url:URL.createObjectURL(file),key:crypto.randomUUID()};logos.push(obj);teams[index].file=obj;if(!applyHeadpics(teams[index],obj))applyHeadpicsByOrder(teams[index],index);render()}
 function setHeadpics(index,id){
   const item=headpicsById(id),team=teams[index];
   if(!team)return false;
@@ -120,9 +129,21 @@ async function aiAutoMatch(){
 }
 async function checkAi(){try{const r=await fetch('/api/health'),d=await r.json();$('aiStatus').textContent=d.ai?`AI sẵn sàng · ${d.model}`:'Chưa có OPENAI_API_KEY trên server; vẫn có thể gắn theo tên file.';$('aiMatch').disabled=!d.ai}catch{$('aiStatus').textContent='Không kiểm tra được AI.'}}
 function localAutoMatch(){
-  const attached=matchNames(),needsReview=teams.filter(t=>t.file&&!hasUniqueHeadpicsId(t)).length;
+  let attached=matchNames(),numbered=0;
+  const free=logos.filter(file=>!teams.some(team=>team.file===file));
+  for(let index=0;index<teams.length;index++){
+    const team=teams[index];
+    if(!team.file&&free.length){
+      team.file=free.shift();
+      applyHeadpics(team,team.file);
+      attached++;
+    }
+    if(team.file&&!headpicsById(team.id)&&applyHeadpicsByOrder(team,index))numbered++;
+  }
+  render();
+  const needsReview=teams.filter(team=>team.file&&!hasUniqueHeadpicsId(team)).length;
   $('bar').style.width='100%';
-  $('aiStatus').textContent=`Đã ghép ${attached} logo có tên khớp rõ ràng. ${needsReview?`${needsReview} logo cần chọn HEADPICS ID thủ công.`:'Tất cả logo đã có HEADPICS ID hợp lệ.'}`;
+  $('aiStatus').textContent=`Đã gắn ${attached} logo và ${numbered} HEADPICS theo thứ tự. ${needsReview?`${needsReview} logo cần kiểm tra HEADPICS ID.`:'Tất cả logo đã có HEADPICS ID hợp lệ.'}`;
 }
 
 function render(){
@@ -152,7 +173,7 @@ function buildZip(entries){const local=[],central=[];let offset=0;for(const e of
 
 function renderHeadpics(){
   const original=exportPreservesOriginal(),duplicates=duplicateHeadpicsIds();
-  const sourceLabels={manual:'ch&#7885;n th&#7911; c&#244;ng','input-id':'t&#7915; ID nh&#7853;p','input-avatar':'t&#7915; avatar nh&#7853;p','input-name':'t&#7915; t&#234;n HEADPICS',filename:'t&#7915; t&#234;n file',preset:'m&#7863;c &#273;&#7883;nh'};
+  const sourceLabels={manual:'ch&#7885;n th&#7911; c&#244;ng','input-id':'t&#7915; ID nh&#7853;p','input-avatar':'t&#7915; avatar nh&#7853;p','input-name':'t&#7915; t&#234;n HEADPICS',filename:'t&#7915; t&#234;n file',order:'theo th&#7913; t&#7921; d&#242;ng',preset:'m&#7863;c &#273;&#7883;nh'};
   $('tbody').innerHTML=teams.map((t,i)=>{
     const valid=headpicsById(t.id),duplicate=duplicates.has(t.id);
     const status=t.headpicsConflict?`<span style="color:#ff6b6b">${esc(t.headpicsConflict)} Ch&#7885;n ID th&#7911; c&#244;ng.</span>`:!t.file?'<span style="color:#f5c451">Ch&#432;a c&#243; logo</span>':!valid?'<span style="color:#f5c451">C&#7847;n ch&#7885;n HEADPICS ID</span>':duplicate?`<span style="color:#ff6b6b">HEADPICS ID b&#7883; tr&#249;ng &middot; ${esc(t.id)}</span>`:`<span style="color:#67e66f">${original?'Gi&#7919; nguy&#234;n logo g&#7889;c':'Avatar tr&#242;n c&#243; khung'} &middot; ${esc(t.avatar||t.id)} &middot; ${sourceLabels[t.headpicsSource]||'&#273;&#227; x&#225;c nh&#7853;n'}</span>`;
@@ -171,6 +192,6 @@ function clearAll(){
 }
 
 teams=HEADPICS.map(([avatar,id],i)=>({no:String(i+1),team:avatar,avatar,id,file:null,headpicsSource:'preset'}));
-$('aiMatch').onclick=localAutoMatch;$('aiMatch').disabled=false;$('aiStatus').textContent='Tự gắn an toàn · không lưu hoặc học từ logo.';
+$('aiMatch').onclick=localAutoMatch;$('aiMatch').disabled=false;$('aiStatus').textContent='Ưu tiên tên khớp; logo còn lại được gắn theo thứ tự dòng và thứ tự tải lên.';
 
 $('parse').onclick=()=>parseTeams($('paste').value);$('append').onclick=()=>parseTeams($('paste').value,true);$('clear').onclick=clearAll;$('match').onclick=matchNames;$('zip').onclick=downloadZip;$('preserveOriginal').checked=false;$('preserveOriginal').onchange=()=>{syncCornerColorAvailability();render()};setCornerColor((()=>{try{return localStorage.getItem(CORNER_COLOR_KEY)}catch{return''}})()||DEFAULT_CORNER_COLOR,false);$('cornerColorPicker').oninput=e=>setCornerColor(e.currentTarget.value);$('cornerColorHex').oninput=e=>{const normalized=normalizeHexColor(e.currentTarget.value);if(normalized)setCornerColor(normalized)};$('cornerColorHex').onblur=e=>{e.currentTarget.value=cornerColor};$('cornerColorHex').onkeydown=e=>{if(e.key==='Enter'){if(!setCornerColor(e.currentTarget.value))e.currentTarget.value=cornerColor;e.currentTarget.blur()}};syncCornerColorAvailability();$('files').onchange=e=>addFiles([...e.target.files]);const drop=$('drop');drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')};drop.ondragleave=()=>drop.classList.remove('drag');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');addFiles([...e.dataTransfer.files])};render();
