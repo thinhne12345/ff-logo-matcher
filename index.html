@@ -31,11 +31,12 @@
 <article class="panel"><small>MATCH BOARD</small><h2>Bảng team</h2><p class="muted-text">Tên file xuất ưu tiên HEADPICS ID · PNG logo 1000×1000.</p><div class="table"><table><thead><tr><th>NO</th><th>TEAM</th><th>LOGO</th><th>HEADPICS ID</th><th>TRẠNG THÁI</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div></article>
 <article class="panel"><small>MANUAL REVIEW</small><h2>Logo chưa ghép</h2><div id="unmatched" class="unmatched"></div></article></main>
 <style>
-.unmatched{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));align-items:start}
-.unmatched .card{min-width:0;overflow:hidden;padding:14px;background:#09101a;border-radius:10px}
-.unmatched .card img{display:block;width:100%;height:160px;object-fit:contain;border:1px solid #1e2f46;border-radius:8px;background:linear-gradient(45deg,#101722 25%,#080d14 25%,#080d14 75%,#101722 75%);background-size:20px 20px}
-.unmatched .filename{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#dce8f8;font-size:12px;margin-top:8px}
-.unmatched .card select{width:100%;min-width:0;margin-top:8px}
+.unmatched{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;align-items:start;max-height:520px;overflow-y:auto;overflow-x:hidden;padding-right:4px}
+.unmatched::-webkit-scrollbar{width:5px}.unmatched::-webkit-scrollbar-track{background:#0a101a}.unmatched::-webkit-scrollbar-thumb{background:#1e3050;border-radius:3px}
+.unmatched .card{min-width:0;overflow:hidden;padding:10px;background:#09101a;border-radius:10px}
+.unmatched .card img{display:block;width:100%;height:130px;object-fit:contain;border:1px solid #1e2f46;border-radius:8px;background:linear-gradient(45deg,#101722 25%,#080d14 25%,#080d14 75%,#101722 75%);background-size:20px 20px}
+.unmatched .filename{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#dce8f8;font-size:11px;margin-top:6px}
+.unmatched .card select{width:100%;min-width:0;margin-top:6px;font-size:12px;min-height:34px}
 /* ===== LOGO NEN ===== */
 .bg-logo-section{margin-top:10px;border:1px solid rgba(109,40,217,.5);border-radius:10px;background:rgba(14,8,24,.8);overflow:hidden;transition:border-color .2s}
 .bg-logo-section:focus-within{border-color:#7c3aed}
