@@ -143,55 +143,7 @@ function exportPreservesOriginal(){return $('preserveOriginal')?.checked!==false
 // ========== BACKGROUND LOGO STATE ==========
 let bgLogoImage=null; // HTMLImageElement when loaded
 
-// --- Access control ---
-const BG_LOGO_KEY='ff_bglogo_unlocked_v1';
-const BG_LOGO_HASH='8e41c5378535957b3e559629fb3e1dcaaa994bb80cc0ef394236fcf053b2e239';
-
-async function hashPassword(pw){
-  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-function isBgLogoUnlocked(){
-  try{return localStorage.getItem(BG_LOGO_KEY)==='1'}catch{return false}
-}
-
-function applyBgLogoUnlockState(){
-  const section=$('bgLogoSection'),btn=$('bgLogoLockBtn');
-  if(!section||!btn)return;
-  if(isBgLogoUnlocked()){
-    section.classList.add('unlocked');
-    btn.textContent='🔓';
-    btn.title='Khóa lại tính năng nâng cao';
-  }else{
-    section.classList.remove('unlocked');
-    btn.textContent='🔒';
-    btn.title='Mở khóa tính năng nâng cao';
-    // reset checkbox khi bị khóa
-    if($('useBgLogo'))$('useBgLogo').checked=false;
-    syncBgLogoUploadVisibility();
-  }
-}
-
-async function promptBgLogoUnlock(){
-  if(isBgLogoUnlocked()){
-    // Đang mở → khóa lại
-    try{localStorage.removeItem(BG_LOGO_KEY)}catch{}
-    applyBgLogoUnlockState();
-    return;
-  }
-  const pw=prompt('Nhập mật khẩu để mở khóa tính năng nâng cao:');
-  if(!pw)return;
-  const h=await hashPassword(pw);
-  if(h===BG_LOGO_HASH){
-    try{localStorage.setItem(BG_LOGO_KEY,'1')}catch{}
-    applyBgLogoUnlockState();
-  }else{
-    alert('Mật khẩu không đúng.');
-  }
-}
-
-function bgLogoEnabled(){return isBgLogoUnlocked()&&$('useBgLogo')?.checked===true&&bgLogoImage!==null}
+function bgLogoEnabled(){return $('useBgLogo')?.checked===true&&bgLogoImage!==null}
 
 function syncBgLogoAvailability(){
   const preserve=exportPreservesOriginal();
@@ -205,6 +157,15 @@ function syncBgLogoUploadVisibility(){
   if(!uploadArea)return;
   const on=$('useBgLogo')?.checked&&!exportPreservesOriginal();
   uploadArea.classList.toggle('visible',!!on);
+}
+
+// ========== FRAME MODE ==========
+const FRAME_MODE_KEY='ff_frame_mode_v1';
+function getFrameMode(){return $('frameMode')?.value||'vietnam'}
+function syncFrameModeAvailability(){
+  const disabled=exportPreservesOriginal();
+  $('frameModeControl')?.classList.toggle('is-disabled',disabled);
+  if($('frameMode'))$('frameMode').disabled=disabled;
 }
 function loadBgLogoFile(file){
   if(!file||!/^image\/(png|jpeg|webp)$/i.test(file.type))return;
@@ -234,9 +195,9 @@ function clearBgLogo(){
  * makePng modes:
  *  preserveOriginal=true  → scale-to-fit, transparent bg (original behaviour)
  *  useBgLogo=true         → bg image fills circle, logo draws on top, outside circle = transparent
- *  default                → dark gradient bg + circular clip + vietnam flag (original behaviour)
+ *  default                → dark gradient bg + circular clip + frame/flag theo frameMode
  */
-function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bgLogoEnabled()){
+function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bgLogoEnabled(),frameMode=getFrameMode()){
   return new Promise((resolve,reject)=>{
     const logoImg=new Image();
     logoImg.onload=()=>{
@@ -286,7 +247,7 @@ function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bg
         ctx.globalCompositeOperation='source-over';
 
       }else{
-        // Mode 3: default – dark bg + circular clip + vietnam flag
+        // Mode 3: default – dark bg + circular clip + frame/flag theo frameMode
         const dark=ctx.createLinearGradient(0,0,1000,1000);
         dark.addColorStop(0,'#181d25');dark.addColorStop(.55,'#0f141c');dark.addColorStop(1,'#080c12');
         ctx.fillStyle=dark;ctx.fillRect(0,0,1000,1000);
@@ -297,7 +258,10 @@ function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bg
         ctx.drawImage(logoImg,(1000-w)/2,(1000-h)/2,w,h);
         ctx.restore();
         ctx.beginPath();ctx.arc(500,500,440,0,Math.PI*2);ctx.lineWidth=8;ctx.strokeStyle='#080b10';ctx.stroke();
-        drawVietnamFlag(ctx);
+        const fm=frameMode||getFrameMode();
+        if(fm==='vietnam')drawVietnamFlag(ctx);
+        else if(fm==='frame-only')drawCornerFrame(ctx);
+        // fm==='none' → không vẽ gì thêm
       }
 
       canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Không tạo được PNG')),'image/png');
@@ -312,16 +276,16 @@ async function downloadOne(i){
   const t=teams[i];if(!t?.file)return;
   if(!headpicsById(t.id))return alert('Vui lòng chọn HEADPICS cho team trước khi xuất ảnh.');
   if(duplicateHeadpicsIds().has(t.id))return alert(`HEADPICS ID ${t.id} đang bị trùng ở nhiều team.`);
-  save(await makePng(t.file,exportPreservesOriginal(),bgLogoEnabled()),`${t.id}.png`);
+  save(await makePng(t.file,exportPreservesOriginal(),bgLogoEnabled(),getFrameMode()),`${t.id}.png`);
 }
 async function downloadZip(){
   const matched=teams.filter(t=>t.file);if(!matched.length)return alert('Chưa có logo nào đã ghép.');
   const missing=matched.filter(t=>!headpicsById(t.id));if(missing.length)return alert('Vui lòng chọn HEADPICS cho mọi team đã gắn logo trước khi tải ZIP.');
   const duplicates=duplicateHeadpicsIds(matched);if(duplicates.size)return alert(`Không thể xuất ZIP vì HEADPICS ID bị trùng: ${[...duplicates].join(', ')}.`);
-  $('zip').disabled=true;const entries=[],preserve=exportPreservesOriginal(),useBg=bgLogoEnabled();
+  $('zip').disabled=true;const entries=[],preserve=exportPreservesOriginal(),useBg=bgLogoEnabled(),fm=getFrameMode();
   try{
     for(let i=0;i<matched.length;i++){
-      const t=matched[i],blob=await makePng(t.file,preserve,useBg);
+      const t=matched[i],blob=await makePng(t.file,preserve,useBg,fm);
       entries.push({name:`${t.id}.png`,data:new Uint8Array(await blob.arrayBuffer())});
       $('bar').style.width=`${(i+1)/matched.length*100}%`;
     }
@@ -339,7 +303,7 @@ $('clear').onclick=clearAll;
 $('match').onclick=matchNames;
 $('zip').onclick=downloadZip;
 $('preserveOriginal').checked=false;
-$('preserveOriginal').onchange=()=>{syncCornerColorAvailability();syncBgLogoAvailability();render()};
+$('preserveOriginal').onchange=()=>{syncCornerColorAvailability();syncBgLogoAvailability();syncFrameModeAvailability();render()};
 setCornerColor((()=>{try{return localStorage.getItem(CORNER_COLOR_KEY)}catch{return''}})()||DEFAULT_CORNER_COLOR,false);
 $('cornerColorPicker').oninput=e=>setCornerColor(e.currentTarget.value);
 $('cornerColorHex').oninput=e=>{const normalized=normalizeHexColor(e.currentTarget.value);if(normalized)setCornerColor(normalized)};
@@ -348,10 +312,6 @@ $('cornerColorHex').onkeydown=e=>{if(e.key==='Enter'){if(!setCornerColor(e.curre
 syncCornerColorAvailability();
 
 // bg logo UI wiring
-if($('bgLogoLockBtn')){
-  $('bgLogoLockBtn').onclick=promptBgLogoUnlock;
-}
-applyBgLogoUnlockState();
 if($('useBgLogo')){
   $('useBgLogo').onchange=()=>{syncBgLogoUploadVisibility();render()};
 }
@@ -368,6 +328,14 @@ if(bgDrop){
   bgDrop.ondragleave=()=>{bgDrop.style.borderColor=''};
   bgDrop.ondrop=e=>{e.preventDefault();bgDrop.style.borderColor='';const f=e.dataTransfer.files[0];if(f)loadBgLogoFile(f)};
 }
+
+// frame mode wiring
+if($('frameMode')){
+  // restore persisted choice
+  try{const saved=localStorage.getItem(FRAME_MODE_KEY);if(saved)$('frameMode').value=saved}catch{}
+  $('frameMode').onchange=()=>{try{localStorage.setItem(FRAME_MODE_KEY,$('frameMode').value)}catch{}render()};
+}
+syncFrameModeAvailability();
 
 $('files').onchange=e=>addFiles([...e.target.files]);
 const drop=$('drop');
