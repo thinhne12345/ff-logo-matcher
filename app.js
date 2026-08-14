@@ -118,7 +118,17 @@ function renderHeadpics(){
   $('tbody').innerHTML=teams.map((t,i)=>{
     const valid=headpicsById(t.id),duplicate=duplicates.has(t.id);
     const status=t.headpicsConflict?`<span style="color:#ff6b6b">${esc(t.headpicsConflict)} Ch&#7885;n ID th&#7911; c&#244;ng.</span>`:!t.file?'<span style="color:#f5c451">Ch&#432;a c&#243; logo</span>':!valid?'<span style="color:#f5c451">C&#7847;n ch&#7885;n HEADPICS ID</span>':duplicate?`<span style="color:#ff6b6b">HEADPICS ID b&#7883; tr&#249;ng &middot; ${esc(t.id)}</span>`:`<span style="color:#67e66f">${original?'Gi&#7919; nguy&#234;n logo g&#7889;c':'Avatar tr&#242;n c&#243; khung'} &middot; ${esc(t.avatar||t.id)} &middot; ${sourceLabels[t.headpicsSource]||'&#273;&#227; x&#225;c nh&#7853;n'}</span>`;
-    return`<tr><td>${esc(t.no)}</td><td><strong>${esc(t.team)}</strong></td><td>${t.file?`<div class="${original?'original-logo-preview':'avatar-preview'}"><img class="preview" src="${t.file.url}" alt="${esc(t.file.name)}"></div>`:`<label class="row-file">Ch&#7885;n logo<input type="file" accept="image/png,image/jpeg,image/webp" onchange="pickForTeam(${i},this.files[0])"></label>`}</td><td><select class="headpics-select" onchange="setHeadpics(${i},this.value)"><option value="">Ch&#7885;n HEADPICS...</option>${HEADPICS.map(([name,id])=>`<option value="${id}" ${t.id===id?'selected':''}>${name} &mdash; ${id}</option>`).join('')}</select></td><td>${status}</td><td>${t.file?`<button onclick="downloadOne(${i})">T&#7843;i PNG</button> <button onclick="detach(${i})">B&#7887;</button>`:''}</td></tr>`;
+    const useBg=bgLogoEnabled(),bgSrc=(useBg&&bgLogoImage)?(bgLogoImage._url||bgLogoImage.src):'';
+    let logoCell;
+    if(!t.file){
+      logoCell=`<label class="row-file">Ch&#7885;n logo<input type="file" accept="image/png,image/jpeg,image/webp" onchange="pickForTeam(${i},this.files[0])"></label>`;
+    }else if(original){
+      logoCell=`<div class="original-logo-preview"><img class="preview" src="${t.file.url}" alt="${esc(t.file.name)}"></div>`;
+    }else{
+      const bgLayer=bgSrc?`<img class="bg-layer" src="${bgSrc}" alt="">`:''
+      logoCell=`<div class="avatar-preview">${bgLayer}<img class="preview" src="${t.file.url}" alt="${esc(t.file.name)}"></div>`;
+    }
+    return`<tr><td>${esc(t.no)}</td><td><strong>${esc(t.team)}</strong></td><td>${logoCell}</td><td><select class="headpics-select" onchange="setHeadpics(${i},this.value)"><option value="">Ch&#7885;n HEADPICS...</option>${HEADPICS.map(([name,id])=>`<option value="${id}" ${t.id===id?'selected':''}>${name} &mdash; ${id}</option>`).join('')}</select></td><td>${status}</td><td>${t.file?`<button onclick="downloadOne(${i})">T&#7843;i PNG</button> <button onclick="detach(${i})">B&#7887;</button>`:''}</td></tr>`;
   }).join('');
   const free=logos.filter(f=>!teams.some(t=>t.file===f));
   $('unmatched').innerHTML=free.map(f=>`<div class="card"><img src="${f.url}" alt="${esc(f.name)}"><strong class="filename" title="${esc(f.name)}">${esc(f.name)}</strong><div class="team-picker"><select><option value="">Ch&#7885;n team...</option>${teams.map((t,i)=>t.file?'':`<option value="${i}">${esc(t.team)}</option>`).join('')}</select><button onclick="assign('${f.key}',this.previousElementSibling.value)">OK</button></div></div>`).join('')||'<p>Kh&#244;ng c&#243; logo ch&#7901; gh&#233;p.</p>';
@@ -245,34 +255,26 @@ function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bg
 
       }else if(useBgLogo&&bgLogoImage){
         // Mode 2: background logo mode
-        // Step 1 - draw bg image clipped to circle
+        // Both bg and logo are drawn inside the same circular clip so that
+        // transparent pixels of the logo reveal the background image underneath.
+        // Outside the circle stays fully transparent (PNG alpha).
         ctx.clearRect(0,0,1000,1000);
         ctx.save();
         ctx.beginPath();
-        ctx.arc(500,500,444,0,Math.PI*2);
+        ctx.arc(500,500,441,0,Math.PI*2); // clip radius matches inner edge of gold ring
         ctx.clip();
+        // Step 1 – fill circle with background image (cover)
         const bgImg=bgLogoImage;
-        const bgScale=Math.max(888/bgImg.width,888/bgImg.height);
+        const bgScale=Math.max(882/bgImg.width,882/bgImg.height);
         const bgW=bgImg.width*bgScale,bgH=bgImg.height*bgScale;
         ctx.drawImage(bgImg,(1000-bgW)/2,(1000-bgH)/2,bgW,bgH);
-        ctx.restore();
-        // Step 2 - draw the team logo on top
+        // Step 2 – draw team logo on top; transparent areas show bg through
         ctx.globalCompositeOperation='source-over';
-        const logoScale=Math.max(880/logoImg.width,880/logoImg.height);
+        const logoScale=Math.min(882/logoImg.width,882/logoImg.height);
         const logoW=logoImg.width*logoScale,logoH=logoImg.height*logoScale;
         ctx.drawImage(logoImg,(1000-logoW)/2,(1000-logoH)/2,logoW,logoH);
-        // Step 3 - mask: keep only pixels within circle (transparent outside ring)
-        const maskCanvas=document.createElement('canvas');
-        maskCanvas.width=1000;maskCanvas.height=1000;
-        const mctx=maskCanvas.getContext('2d');
-        mctx.beginPath();
-        mctx.arc(500,500,469,0,Math.PI*2);
-        mctx.fillStyle='#fff';
-        mctx.fill();
-        ctx.globalCompositeOperation='destination-in';
-        ctx.drawImage(maskCanvas,0,0);
-        ctx.globalCompositeOperation='source-over';
-        // Step 4 - draw gold ring on top
+        ctx.restore();
+        // Step 3 – draw gold ring on top (outside the clip, so it paints over the edge)
         drawGoldRing(ctx);
 
       }else{
