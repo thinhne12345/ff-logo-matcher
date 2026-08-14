@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id);let teams=[],logos=[];
+const $=id=>document.getElementById(id);let teams=[],logos=[],render;
 const HEADPICS=[['ANDREW','902000006'],['KELLY','902000007'],['OLIVA','902000008'],['FORD','902000009'],['NIKITA','902000010'],['MISHA','902000012'],['MAXIM','902000030'],['KLA','902000062'],['PALOMA','902000080'],['MIGUEL','902000081'],['CAROLINE','902000096'],['ANTONIO','902000102'],['WUKONG','902000110'],['MOCO','902000119'],['HAYATO','902000130']];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const textKey=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\.[^.]+$/,'').replace(/[^A-Z0-9]+/g,' ').trim();
@@ -12,35 +12,10 @@ function syncCornerColorAvailability(){const disabled=exportPreservesOriginal();
 const headpicsById=id=>HEADPICS.find(([,candidateId])=>candidateId===String(id||''));
 const exactHeadpicsByName=value=>HEADPICS.find(([name])=>textKey(name)===textKey(value));
 const hasWholePhrase=(value,phrase)=>{const clean=textKey(value),wanted=textKey(phrase);return Boolean(clean&&wanted&&(clean===wanted||` ${clean} `.includes(` ${wanted} `)))};
-function findExplicitHeadpics(...values){
-  const matches=new Map();
-  for(const value of values){
-    const clean=textKey(value);
-    if(!clean)continue;
-    for(const item of HEADPICS){
-      const [name,id]=item;
-      if(hasWholePhrase(clean,name)||hasWholePhrase(clean,id))matches.set(id,item);
-    }
-  }
-  return matches.size===1?[...matches.values()][0]:null;
-}
-function duplicateHeadpicsIds(list=teams){
-  const counts=new Map();
-  for(const team of list)if(headpicsById(team.id))counts.set(team.id,(counts.get(team.id)||0)+1);
-  return new Set([...counts].filter(([,count])=>count>1).map(([id])=>id));
-}
+function findExplicitHeadpics(...values){const matches=new Map();for(const value of values){const clean=textKey(value);if(!clean)continue;for(const item of HEADPICS){const [name,id]=item;if(hasWholePhrase(clean,name)||hasWholePhrase(clean,id))matches.set(id,item)}}return matches.size===1?[...matches.values()][0]:null}
+function duplicateHeadpicsIds(list=teams){const counts=new Map();for(const team of list)if(headpicsById(team.id))counts.set(team.id,(counts.get(team.id)||0)+1);return new Set([...counts].filter(([,count])=>count>1).map(([id])=>id))}
 const hasUniqueHeadpicsId=team=>Boolean(headpicsById(team?.id)&&!team.headpicsConflict&&!duplicateHeadpicsIds().has(team.id));
-function logoNameMatchScore(team,file){
-  const fileKey=norm(file?.name);
-  if(!fileKey)return 0;
-  const keys=[team.team,team.avatar,team.id].map(norm).filter(Boolean);
-  let score=0;
-  for(const key of keys){
-    if(fileKey===key)score=Math.max(score,100);
-    else if(key.length>=3&&hasWholePhrase(fileKey,key))score=Math.max(score,80);
-  }
-  return score;
-}
+function logoNameMatchScore(team,file){const fileKey=norm(file?.name);if(!fileKey)return 0;const keys=[team.team,team.avatar,team.id].map(norm).filter(Boolean);let score=0;for(const key of keys){if(fileKey===key)score=Math.max(score,100);else if(key.length>=3&&hasWholePhrase(fileKey,key))score=Math.max(score,80)}return score}
 try{localStorage.removeItem?.('ff_logo_memory_v2')}catch{}
 
 function parseTeams(text,append=false){
@@ -67,8 +42,7 @@ async function addFiles(items){
 }
 
 function matchNames(){
-  const free=logos.filter(f=>!teams.some(t=>t.file===f));
-  let attached=0;
+  const free=logos.filter(f=>!teams.some(t=>t.file===f));let attached=0;
   for(const team of teams){
     if(team.file)continue;
     const scored=free.map(file=>({file,score:logoNameMatchScore(team,file)})).filter(item=>item.score>0);
@@ -102,23 +76,19 @@ function applyHeadpicsByOrder(team,index){
   if(!team)return null;
   const selected=headpicsById(team.id);
   if(selected){team.avatar=selected[0];return selected}
-  const ordered=HEADPICS[index];
-  if(!ordered)return null;
-  team.avatar=ordered[0];team.id=ordered[1];team.headpicsSource='order';team.headpicsConflict='';
-  return ordered;
+  const ordered=HEADPICS[index];if(!ordered)return null;
+  team.avatar=ordered[0];team.id=ordered[1];team.headpicsSource='order';team.headpicsConflict='';return ordered;
 }
 function assign(key,index){if(index==='')return;const file=logos.find(x=>x.key===key),row=Number(index),team=teams[row];if(!file||!team||team.file||teams.some(t=>t.file===file)){render();return}team.file=file;if(!applyHeadpics(team,file))applyHeadpicsByOrder(team,row);render()}
 function pickForTeam(index,file){if(!file||!/^image\/(png|jpeg|webp)$/i.test(file.type))return;const obj={file,name:file.name,url:URL.createObjectURL(file),key:crypto.randomUUID()};logos.push(obj);teams[index].file=obj;if(!applyHeadpics(teams[index],obj))applyHeadpicsByOrder(teams[index],index);render()}
 function setHeadpics(index,id){
-  const item=headpicsById(id),team=teams[index];
-  if(!team)return false;
+  const item=headpicsById(id),team=teams[index];if(!team)return false;
   if(item&&teams.some((candidate,candidateIndex)=>candidateIndex!==index&&candidate.id===item[1])){alert(`${item[0]} — ${item[1]} đã được chọn cho team khác.`);render();return false}
-  team.id=item?.[1]||'';team.avatar=item?.[0]||'';team.headpicsSource=item?'manual':'';team.headpicsConflict='';
-  render();return true;
+  team.id=item?.[1]||'';team.avatar=item?.[0]||'';team.headpicsSource=item?'manual':'';team.headpicsConflict='';render();return true;
 }
 function detach(index){teams[index].file=null;render()}
-
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)})}
+
 async function aiAutoMatch(){
   const targets=teams.filter(t=>t.file&&!HEADPICS.some(([,id])=>id===t.id));
   if(!targets.length){$('aiStatus').textContent='Tất cả logo đã có HEADPICS ID.';return}
@@ -133,43 +103,14 @@ function localAutoMatch(){
   const free=logos.filter(file=>!teams.some(team=>team.file===file));
   for(let index=0;index<teams.length;index++){
     const team=teams[index];
-    if(!team.file&&free.length){
-      team.file=free.shift();
-      applyHeadpics(team,team.file);
-      attached++;
-    }
+    if(!team.file&&free.length){team.file=free.shift();applyHeadpics(team,team.file);attached++}
     if(team.file&&!headpicsById(team.id)&&applyHeadpicsByOrder(team,index))numbered++;
   }
   render();
   const needsReview=teams.filter(team=>team.file&&!hasUniqueHeadpicsId(team)).length;
   $('bar').style.width='100%';
-  $('aiStatus').textContent=`Đã gắn ${attached} logo và ${numbered} HEADPICS theo thứ tự. ${needsReview?`${needsReview} logo cần kiểm tra HEADPICS ID.`:'Tất cả logo đã có HEADPICS ID hợp lệ.'}`;
+  $('aiStatus').textContent=`Đã gắn ${attached} logo · ${numbered} ID theo thứ tự${needsReview?` · ${needsReview} cần kiểm tra thủ công`:''}`;
 }
-
-function render(){
-  $('tbody').innerHTML=teams.map((t,i)=>`<tr><td>${esc(t.no)}</td><td><strong>${esc(t.team)}</strong></td><td>${t.file?`<img class="preview" src="${t.file.url}" alt="">`:'—'}</td><td><input value="${esc(t.id)}" oninput="teams[${i}].id=this.value"></td><td>${t.file?'<span style="color:#67e66f">Đã ghép · giữ nền gốc</span>':'<span style="color:#f5c451">Chưa có logo</span>'}</td><td>${t.file?`<button onclick="downloadOne(${i})">Tải PNG</button> <button onclick="detach(${i})">Bỏ</button>`:''}</td></tr>`).join('');
-  const free=logos.filter(f=>!teams.some(t=>t.file===f));
-  $('unmatched').innerHTML=free.map(f=>`<div class="card"><img src="${f.url}" alt=""><strong>${esc(f.name)}</strong><select onchange="assign('${f.key}',this.value)"><option value="">Chọn team...</option>${teams.map((t,i)=>`<option value="${i}">${esc(t.team)}</option>`).join('')}</select></div>`).join('')||'<p>Không có logo chờ ghép.</p>';
-  $('tc').textContent=teams.length;$('lc').textContent=logos.length;$('mc').textContent=teams.filter(t=>t.file).length;
-}
-
-function drawStar(ctx,cx,cy,outer,inner){ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?inner:outer,x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath()}
-function drawCornerFrame(ctx){const inset=5,length=172;ctx.save();ctx.lineCap='square';ctx.lineJoin='miter';ctx.lineWidth=14;ctx.strokeStyle=cornerColor;ctx.shadowColor=cornerColor;ctx.shadowBlur=7;for(const [x,y,sx,sy] of [[inset,inset,1,1],[1000-inset,inset,-1,1],[inset,1000-inset,1,-1],[1000-inset,1000-inset,-1,-1]]){ctx.beginPath();ctx.moveTo(x,y+sy*length);ctx.lineTo(x,y);ctx.lineTo(x+sx*length,y);ctx.stroke()}ctx.restore()}
-function drawVietnamFlag(ctx){drawCornerFrame(ctx);const x=790,y=58,w=150,h=100,r=16;ctx.save();ctx.shadowColor='#0009';ctx.shadowBlur=18;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle='#da251d';ctx.fill();ctx.lineWidth=6;ctx.strokeStyle='#ffe8c7';ctx.stroke();ctx.shadowColor='transparent';drawStar(ctx,x+w/2,y+h/2,31,13);ctx.fillStyle='#ffdc35';ctx.fill();ctx.restore()}
-function exportPreservesOriginal(){return $('preserveOriginal')?.checked!==false}
-function makePng(fileObj,preserveOriginal=exportPreservesOriginal()){
-  return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=1000;const ctx=canvas.getContext('2d',{alpha:preserveOriginal});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';if(preserveOriginal){const scale=Math.min(1000/img.width,1000/img.height),w=img.width*scale,h=img.height*scale;ctx.clearRect(0,0,1000,1000);ctx.drawImage(img,(1000-w)/2,(1000-h)/2,w,h)}else{const dark=ctx.createLinearGradient(0,0,1000,1000);dark.addColorStop(0,'#181d25');dark.addColorStop(.55,'#0f141c');dark.addColorStop(1,'#080c12');ctx.fillStyle=dark;ctx.fillRect(0,0,1000,1000);ctx.save();ctx.beginPath();ctx.arc(500,500,440,0,Math.PI*2);ctx.clip();const scale=Math.max(880/img.width,880/img.height),w=img.width*scale,h=img.height*scale;ctx.drawImage(img,(1000-w)/2,(1000-h)/2,w,h);ctx.restore();ctx.beginPath();ctx.arc(500,500,440,0,Math.PI*2);ctx.lineWidth=8;ctx.strokeStyle='#080b10';ctx.stroke();drawVietnamFlag(ctx)}canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Không tạo được PNG')),'image/png')};img.onerror=reject;img.src=fileObj.url});
-}
-function save(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
-async function downloadOne(i){const t=teams[i];if(!t?.file)return;if(!headpicsById(t.id))return alert('Vui lòng chọn HEADPICS cho team trước khi xuất ảnh.');if(duplicateHeadpicsIds().has(t.id))return alert(`HEADPICS ID ${t.id} đang bị trùng ở nhiều team.`);save(await makePng(t.file,exportPreservesOriginal()),`${t.id}.png`)}
-async function downloadZip(){
-  const matched=teams.filter(t=>t.file);if(!matched.length)return alert('Chưa có logo nào đã ghép.');const missing=matched.filter(t=>!headpicsById(t.id));if(missing.length)return alert('Vui lòng chọn HEADPICS cho mọi team đã gắn logo trước khi tải ZIP.');const duplicates=duplicateHeadpicsIds(matched);if(duplicates.size)return alert(`Không thể xuất ZIP vì HEADPICS ID bị trùng: ${[...duplicates].join(', ')}.`);$('zip').disabled=true;const entries=[],preserveOriginal=exportPreservesOriginal();
-  try{for(let i=0;i<matched.length;i++){const t=matched[i],blob=await makePng(t.file,preserveOriginal);entries.push({name:`${t.id}.png`,data:new Uint8Array(await blob.arrayBuffer())});$('bar').style.width=`${(i+1)/matched.length*100}%`}
-  save(buildZip(entries),'ff_team_avatars_1000x1000.zip')}finally{$('zip').disabled=false}
-}
-
-let crcTable;function crc32(bytes){if(!crcTable){crcTable=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;crcTable[n]=c>>>0}}let crc=0xffffffff;for(const b of bytes)crc=crcTable[(crc^b)&255]^(crc>>>8);return(crc^0xffffffff)>>>0}
-function buildZip(entries){const local=[],central=[];let offset=0;for(const e of entries){const name=new TextEncoder().encode(e.name),data=e.data,crc=crc32(data),l=new Uint8Array(30+name.length),lv=new DataView(l.buffer);lv.setUint32(0,0x04034b50,true);lv.setUint16(4,20,true);lv.setUint16(6,0x800,true);lv.setUint32(14,crc,true);lv.setUint32(18,data.length,true);lv.setUint32(22,data.length,true);lv.setUint16(26,name.length,true);l.set(name,30);local.push(l,data);const c=new Uint8Array(46+name.length),cv=new DataView(c.buffer);cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0x800,true);cv.setUint32(16,crc,true);cv.setUint32(20,data.length,true);cv.setUint32(24,data.length,true);cv.setUint16(28,name.length,true);cv.setUint32(42,offset,true);c.set(name,46);central.push(c);offset+=l.length+data.length}const size=central.reduce((s,x)=>s+x.length,0),end=new Uint8Array(22),ev=new DataView(end.buffer);ev.setUint32(0,0x06054b50,true);ev.setUint16(8,entries.length,true);ev.setUint16(10,entries.length,true);ev.setUint32(12,size,true);ev.setUint32(16,offset,true);return new Blob([...local,...central,end],{type:'application/zip'})}
 
 function renderHeadpics(){
   const original=exportPreservesOriginal(),duplicates=duplicateHeadpicsIds();
@@ -194,4 +135,193 @@ function clearAll(){
 teams=HEADPICS.map(([avatar,id],i)=>({no:String(i+1),team:avatar,avatar,id,file:null,headpicsSource:'preset'}));
 $('aiMatch').onclick=localAutoMatch;$('aiMatch').disabled=false;$('aiStatus').textContent='Ưu tiên tên khớp; logo còn lại được gắn theo thứ tự dòng và thứ tự tải lên.';
 
-$('parse').onclick=()=>parseTeams($('paste').value);$('append').onclick=()=>parseTeams($('paste').value,true);$('clear').onclick=clearAll;$('match').onclick=matchNames;$('zip').onclick=downloadZip;$('preserveOriginal').checked=false;$('preserveOriginal').onchange=()=>{syncCornerColorAvailability();render()};setCornerColor((()=>{try{return localStorage.getItem(CORNER_COLOR_KEY)}catch{return''}})()||DEFAULT_CORNER_COLOR,false);$('cornerColorPicker').oninput=e=>setCornerColor(e.currentTarget.value);$('cornerColorHex').oninput=e=>{const normalized=normalizeHexColor(e.currentTarget.value);if(normalized)setCornerColor(normalized)};$('cornerColorHex').onblur=e=>{e.currentTarget.value=cornerColor};$('cornerColorHex').onkeydown=e=>{if(e.key==='Enter'){if(!setCornerColor(e.currentTarget.value))e.currentTarget.value=cornerColor;e.currentTarget.blur()}};syncCornerColorAvailability();$('files').onchange=e=>addFiles([...e.target.files]);const drop=$('drop');drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')};drop.ondragleave=()=>drop.classList.remove('drag');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');addFiles([...e.dataTransfer.files])};render();
+function drawStar(ctx,cx,cy,outer,inner){ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?inner:outer,x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath()}
+function drawCornerFrame(ctx){const inset=5,length=172;ctx.save();ctx.lineCap='square';ctx.lineJoin='miter';ctx.lineWidth=14;ctx.strokeStyle=cornerColor;ctx.shadowColor=cornerColor;ctx.shadowBlur=7;for(const [x,y,sx,sy] of [[inset,inset,1,1],[1000-inset,inset,-1,1],[inset,1000-inset,1,-1],[1000-inset,1000-inset,-1,-1]]){ctx.beginPath();ctx.moveTo(x,y+sy*length);ctx.lineTo(x,y);ctx.lineTo(x+sx*length,y);ctx.stroke()}ctx.restore()}
+function drawVietnamFlag(ctx){drawCornerFrame(ctx);const x=790,y=58,w=150,h=100,r=16;ctx.save();ctx.shadowColor='#0009';ctx.shadowBlur=18;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle='#da251d';ctx.fill();ctx.lineWidth=6;ctx.strokeStyle='#ffe8c7';ctx.stroke();ctx.shadowColor='transparent';drawStar(ctx,x+w/2,y+h/2,31,13);ctx.fillStyle='#ffdc35';ctx.fill();ctx.restore()}
+function exportPreservesOriginal(){return $('preserveOriginal')?.checked!==false}
+
+// ========== BACKGROUND LOGO STATE ==========
+let bgLogoImage=null; // HTMLImageElement when loaded
+
+function bgLogoEnabled(){return $('useBgLogo')?.checked===true&&bgLogoImage!==null}
+function syncBgLogoAvailability(){
+  const preserve=exportPreservesOriginal();
+  const section=$('bgLogoSection');
+  if(section)section.classList.toggle('is-disabled',preserve);
+  if(preserve&&$('useBgLogo'))$('useBgLogo').checked=false;
+  syncBgLogoUploadVisibility();
+}
+function syncBgLogoUploadVisibility(){
+  const uploadArea=$('bgLogoUploadArea');
+  if(!uploadArea)return;
+  const on=$('useBgLogo')?.checked&&!exportPreservesOriginal();
+  uploadArea.classList.toggle('visible',!!on);
+}
+function loadBgLogoFile(file){
+  if(!file||!/^image\/(png|jpeg|webp)$/i.test(file.type))return;
+  const url=URL.createObjectURL(file);
+  const img=new Image();
+  img.onload=()=>{
+    if(bgLogoImage&&bgLogoImage._url)URL.revokeObjectURL(bgLogoImage._url);
+    bgLogoImage=img;bgLogoImage._url=url;
+    const thumb=$('bgLogoThumb');if(thumb)thumb.src=url;
+    const preview=$('bgLogoPreview');if(preview)preview.style.display='flex';
+    const dropLabel=$('bgLogoDropLabel');if(dropLabel)dropLabel.textContent='🖼 '+file.name;
+  };
+  img.onerror=()=>URL.revokeObjectURL(url);
+  img.src=url;
+}
+function clearBgLogo(){
+  if(bgLogoImage?._url)URL.revokeObjectURL(bgLogoImage._url);
+  bgLogoImage=null;
+  const thumb=$('bgLogoThumb');if(thumb)thumb.src='';
+  const preview=$('bgLogoPreview');if(preview)preview.style.display='none';
+  const dropLabel=$('bgLogoDropLabel');if(dropLabel)dropLabel.textContent='🖼 Chọn ảnh nền (ảnh 1)';
+  const fileInput=$('bgLogoFile');if(fileInput)fileInput.value='';
+}
+
+// ========== CANVAS EXPORT ==========
+/**
+ * makePng modes:
+ *  preserveOriginal=true  → scale-to-fit, transparent bg (original behaviour)
+ *  useBgLogo=true         → bg image fills circle, logo draws on top, outside circle = transparent
+ *  default                → dark gradient bg + circular clip + vietnam flag (original behaviour)
+ */
+function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bgLogoEnabled()){
+  return new Promise((resolve,reject)=>{
+    const logoImg=new Image();
+    logoImg.onload=()=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=1000;canvas.height=1000;
+      const ctx=canvas.getContext('2d',{alpha:true});
+      ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+
+      if(preserveOriginal){
+        // Mode 1: preserve original – scale to fit, transparent outer
+        ctx.clearRect(0,0,1000,1000);
+        const scale=Math.min(1000/logoImg.width,1000/logoImg.height);
+        const w=logoImg.width*scale,h=logoImg.height*scale;
+        ctx.drawImage(logoImg,(1000-w)/2,(1000-h)/2,w,h);
+
+      }else if(useBgLogo&&bgLogoImage){
+        // Mode 2: background logo mode
+        // Step 1 – draw bg image clipped to circle (slightly inside logo's ring area)
+        ctx.clearRect(0,0,1000,1000);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(500,500,444,0,Math.PI*2); // slightly larger than 440 to cover logo inner area
+        ctx.clip();
+        const bgImg=bgLogoImage;
+        const bgScale=Math.max(888/bgImg.width,888/bgImg.height);
+        const bgW=bgImg.width*bgScale,bgH=bgImg.height*bgScale;
+        ctx.drawImage(bgImg,(1000-bgW)/2,(1000-bgH)/2,bgW,bgH);
+        ctx.restore();
+
+        // Step 2 – draw the team logo on top (source-over preserves its alpha / gold ring)
+        ctx.globalCompositeOperation='source-over';
+        const logoScale=Math.max(880/logoImg.width,880/logoImg.height);
+        const logoW=logoImg.width*logoScale,logoH=logoImg.height*logoScale;
+        ctx.drawImage(logoImg,(1000-logoW)/2,(1000-logoH)/2,logoW,logoH);
+
+        // Step 3 – mask: keep only pixels within circle (transparent outside ring)
+        // Use a temporary canvas to draw the circular mask then composite destination-in
+        const maskCanvas=document.createElement('canvas');
+        maskCanvas.width=1000;maskCanvas.height=1000;
+        const mctx=maskCanvas.getContext('2d');
+        mctx.beginPath();
+        mctx.arc(500,500,447,0,Math.PI*2); // match just outside the gold ring
+        mctx.fillStyle='#fff';
+        mctx.fill();
+        ctx.globalCompositeOperation='destination-in';
+        ctx.drawImage(maskCanvas,0,0);
+        ctx.globalCompositeOperation='source-over';
+
+      }else{
+        // Mode 3: default – dark bg + circular clip + vietnam flag
+        const dark=ctx.createLinearGradient(0,0,1000,1000);
+        dark.addColorStop(0,'#181d25');dark.addColorStop(.55,'#0f141c');dark.addColorStop(1,'#080c12');
+        ctx.fillStyle=dark;ctx.fillRect(0,0,1000,1000);
+        ctx.save();
+        ctx.beginPath();ctx.arc(500,500,440,0,Math.PI*2);ctx.clip();
+        const scale=Math.max(880/logoImg.width,880/logoImg.height);
+        const w=logoImg.width*scale,h=logoImg.height*scale;
+        ctx.drawImage(logoImg,(1000-w)/2,(1000-h)/2,w,h);
+        ctx.restore();
+        ctx.beginPath();ctx.arc(500,500,440,0,Math.PI*2);ctx.lineWidth=8;ctx.strokeStyle='#080b10';ctx.stroke();
+        drawVietnamFlag(ctx);
+      }
+
+      canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Không tạo được PNG')),'image/png');
+    };
+    logoImg.onerror=reject;
+    logoImg.src=fileObj.url;
+  });
+}
+
+function save(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+async function downloadOne(i){
+  const t=teams[i];if(!t?.file)return;
+  if(!headpicsById(t.id))return alert('Vui lòng chọn HEADPICS cho team trước khi xuất ảnh.');
+  if(duplicateHeadpicsIds().has(t.id))return alert(`HEADPICS ID ${t.id} đang bị trùng ở nhiều team.`);
+  save(await makePng(t.file,exportPreservesOriginal(),bgLogoEnabled()),`${t.id}.png`);
+}
+async function downloadZip(){
+  const matched=teams.filter(t=>t.file);if(!matched.length)return alert('Chưa có logo nào đã ghép.');
+  const missing=matched.filter(t=>!headpicsById(t.id));if(missing.length)return alert('Vui lòng chọn HEADPICS cho mọi team đã gắn logo trước khi tải ZIP.');
+  const duplicates=duplicateHeadpicsIds(matched);if(duplicates.size)return alert(`Không thể xuất ZIP vì HEADPICS ID bị trùng: ${[...duplicates].join(', ')}.`);
+  $('zip').disabled=true;const entries=[],preserve=exportPreservesOriginal(),useBg=bgLogoEnabled();
+  try{
+    for(let i=0;i<matched.length;i++){
+      const t=matched[i],blob=await makePng(t.file,preserve,useBg);
+      entries.push({name:`${t.id}.png`,data:new Uint8Array(await blob.arrayBuffer())});
+      $('bar').style.width=`${(i+1)/matched.length*100}%`;
+    }
+    save(buildZip(entries),'ff_team_avatars_1000x1000.zip');
+  }finally{$('zip').disabled=false}
+}
+
+let crcTable;function crc32(bytes){if(!crcTable){crcTable=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;crcTable[n]=c>>>0}}let crc=0xffffffff;for(const b of bytes)crc=crcTable[(crc^b)&255]^(crc>>>8);return(crc^0xffffffff)>>>0}
+function buildZip(entries){const local=[],central=[];let offset=0;for(const e of entries){const name=new TextEncoder().encode(e.name),data=e.data,crc=crc32(data),l=new Uint8Array(30+name.length),lv=new DataView(l.buffer);lv.setUint32(0,0x04034b50,true);lv.setUint16(4,20,true);lv.setUint16(6,0x800,true);lv.setUint32(14,crc,true);lv.setUint32(18,data.length,true);lv.setUint32(22,data.length,true);lv.setUint16(26,name.length,true);l.set(name,30);local.push(l,data);const c=new Uint8Array(46+name.length),cv=new DataView(c.buffer);cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0x800,true);cv.setUint32(16,crc,true);cv.setUint32(20,data.length,true);cv.setUint32(24,data.length,true);cv.setUint16(28,name.length,true);cv.setUint32(42,offset,true);c.set(name,46);central.push(c);offset+=l.length+data.length}const size=central.reduce((s,x)=>s+x.length,0),end=new Uint8Array(22),ev=new DataView(end.buffer);ev.setUint32(0,0x06054b50,true);ev.setUint16(8,entries.length,true);ev.setUint16(10,entries.length,true);ev.setUint32(12,size,true);ev.setUint32(16,offset,true);return new Blob([...local,...central,end],{type:'application/zip'})}
+
+// ========== INIT EVENT LISTENERS ==========
+$('parse').onclick=()=>parseTeams($('paste').value);
+$('append').onclick=()=>parseTeams($('paste').value,true);
+$('clear').onclick=clearAll;
+$('match').onclick=matchNames;
+$('zip').onclick=downloadZip;
+$('preserveOriginal').checked=false;
+$('preserveOriginal').onchange=()=>{syncCornerColorAvailability();syncBgLogoAvailability();render()};
+setCornerColor((()=>{try{return localStorage.getItem(CORNER_COLOR_KEY)}catch{return''}})()||DEFAULT_CORNER_COLOR,false);
+$('cornerColorPicker').oninput=e=>setCornerColor(e.currentTarget.value);
+$('cornerColorHex').oninput=e=>{const normalized=normalizeHexColor(e.currentTarget.value);if(normalized)setCornerColor(normalized)};
+$('cornerColorHex').onblur=e=>{e.currentTarget.value=cornerColor};
+$('cornerColorHex').onkeydown=e=>{if(e.key==='Enter'){if(!setCornerColor(e.currentTarget.value))e.currentTarget.value=cornerColor;e.currentTarget.blur()}};
+syncCornerColorAvailability();
+
+// bg logo UI wiring
+if($('useBgLogo')){
+  $('useBgLogo').onchange=()=>{syncBgLogoUploadVisibility();render()};
+}
+if($('bgLogoFile')){
+  $('bgLogoFile').onchange=e=>{if(e.target.files[0])loadBgLogoFile(e.target.files[0])};
+}
+if($('bgLogoClear')){
+  $('bgLogoClear').onclick=clearBgLogo;
+}
+// drag-drop on bg logo drop area
+const bgDrop=$('bgLogoDrop');
+if(bgDrop){
+  bgDrop.ondragover=e=>{e.preventDefault();bgDrop.style.borderColor='#a855f7'};
+  bgDrop.ondragleave=()=>{bgDrop.style.borderColor=''};
+  bgDrop.ondrop=e=>{e.preventDefault();bgDrop.style.borderColor='';const f=e.dataTransfer.files[0];if(f)loadBgLogoFile(f)};
+}
+
+$('files').onchange=e=>addFiles([...e.target.files]);
+const drop=$('drop');
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')};
+drop.ondragleave=()=>drop.classList.remove('drag');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');addFiles([...e.dataTransfer.files])};
+render();
+
+
+

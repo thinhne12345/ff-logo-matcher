@@ -1,8 +1,46 @@
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FF Logo AI Matcher 1000×1000</title><link rel="stylesheet" href="styles.css"><style>.avatar-preview{width:86px;height:86px;display:grid;place-items:center;background:linear-gradient(#C0C0C0,#C0C0C0) left top/27px 4px no-repeat,linear-gradient(#C0C0C0,#C0C0C0) left top/4px 27px no-repeat,linear-gradient(#C0C0C0,#C0C0C0) right top/27px 4px no-repeat,linear-gradient(#C0C0C0,#C0C0C0) right top/4px 27px no-repeat,linear-gradient(#C0C0C0,#C0C0C0) left bottom/27px 4px no-repeat,linear-gradient(#C0C0C0,#C0C0C0) left bottom/4px 27px no-repeat,linear-gradient(#C0C0C0,#C0C0C0) right bottom/27px 4px no-repeat,linear-gradient(#C0C0C0,#C0C0C0) right bottom/4px 27px no-repeat,#10151c}.avatar-preview .preview{width:70px;height:70px;object-fit:cover;border-radius:50%;background:#05080d;border:0;outline:0}.headpics-select{width:100%;min-width:240px;min-height:42px;padding:0 10px}.row-file{display:inline-grid;place-items:center;min-height:42px;padding:0 14px;border:1px solid #2de8dc;border-radius:8px;background:#0c5b68;color:#fff;cursor:pointer;font-weight:800}.row-file input{display:none}</style></head><body>
 <header><div class="brand"><b>FF</b><div><small>LOGO OPERATIONS CONSOLE</small><h1>FF Logo AI Matcher</h1></div></div><p>Ghép logo theo team và xuất PNG 1000×1000 px.</p><i>Sẵn sàng · Xử lý trên trình duyệt</i></header>
 <main><nav><span>01 <b>Nhập team</b></span><span>02 <b>Upload logo</b></span><span>03 <b>Ghép theo tên</b></span><span>04 <b>Xuất ZIP</b></span></nav>
-<div class="notice"><b>Avatar tròn mặc định</b> Khi cần giữ nguyên ảnh đã tải lên, hãy bật tùy chọn “Giữ nguyên nền và logo gốc”.</div>
-<section class="workspace"><article><small>ROSTER INPUT</small><h2>Danh sách team</h2><textarea id="paste" placeholder="1 EOP&#10;2 WAG&#10;3 HQ&#10;&#10;Hoặc: EOP | Andrew | 902000006"></textarea><div class="buttons"><button id="parse" class="primary">Nhập vào bảng</button><button id="append">Thêm tiếp</button><button id="clear" class="danger">Xóa bảng & logo</button></div></article>
-<article><small>EXPORT STUDIO</small><h2>Logo & xuất ảnh <em>1000×1000</em></h2><label id="drop"><input id="files" type="file" accept="image/png,image/jpeg,image/webp" multiple><strong>Chọn hoặc kéo thả logo</strong><span>PNG, JPG, WEBP · xem trước đúng chế độ xuất</span></label><input value="1000 × 1000 px (cố định)" disabled><label class="export-option" for="preserveOriginal"><input id="preserveOriginal" type="checkbox" autocomplete="off"><span><strong>Giữ nguyên nền và logo gốc</strong><small>Không cắt tròn, không đổi nền, không thêm khung hoặc cờ khi xuất PNG.</small></span></label><div class="corner-color-control" id="cornerColorControl"><span class="corner-color-copy"><strong>Màu khung bốn góc</strong><small>Áp dụng tức thì cho preview và PNG xuất.</small></span><div class="corner-color-inputs"><input id="cornerColorPicker" type="color" value="#c0c0c0" aria-label="Chọn màu khung bốn góc"><input id="cornerColorHex" class="corner-color-hex" type="text" value="#C0C0C0" maxlength="7" spellcheck="false" aria-label="Mã màu HEX"></div></div><div class="buttons"><button id="match">Gắn theo tên file</button><button id="aiMatch" class="primary">Tự gắn theo thứ tự</button><button id="zip" class="success">Tải ZIP</button></div><p id="aiStatus">Ưu tiên tên khớp; logo còn lại được gắn theo thứ tự dòng và thứ tự tải lên.</p><div class="progress"><div id="bar"></div></div><div class="stats"><span><b id="tc">0</b>team</span><span><b id="lc">0</b>logo</span><span><b id="mc">0</b>đã ghép</span></div></article></section>
+<div class="notice"><b>Avatar tròn mặc định</b> Khi cần giữ nguyên ảnh đã tải lên, hãy bật tùy chọn "Giữ nguyên nền và logo gốc".</div>
+<section class="workspace"><article><small>ROSTER INPUT</small><h2>Danh sách team</h2><textarea id="paste" placeholder="1 EOP&#10;2 WAG&#10;3 HQ&#10;&#10;Hoặc: EOP | Andrew | 902000006"></textarea><div class="buttons"><button id="parse" class="primary">Nhập vào bảng</button><button id="append">Thêm tiếp</button><button id="clear" class="danger">Xóa bảng &amp; logo</button></div></article>
+<article><small>EXPORT STUDIO</small><h2>Logo &amp; xuất ảnh <em>1000&#xd7;1000</em></h2>
+<label id="drop"><input id="files" type="file" accept="image/png,image/jpeg,image/webp" multiple><strong>Chọn hoặc kéo thả logo</strong><span>PNG, JPG, WEBP · xem trước đúng chế độ xuất</span></label>
+<input value="1000 × 1000 px (cố định)" disabled>
+<label class="export-option" for="preserveOriginal"><input id="preserveOriginal" type="checkbox" autocomplete="off"><span><strong>Giữ nguyên nền và logo gốc</strong><small>Không cắt tròn, không đổi nền, không thêm khung hoặc cờ khi xuất PNG.</small></span></label>
+<div class="bg-logo-section" id="bgLogoSection">
+<label class="export-option bg-logo-toggle" for="useBgLogo"><input id="useBgLogo" type="checkbox" autocomplete="off"><span><strong>Logo nền – ghép ảnh nền vào ô tròn</strong><small>Ảnh nền lấp đầy bên trong viền tròn của logo, giữ viền vàng, nền ngoài trong suốt (PNG có alpha).</small></span></label>
+<div class="bg-logo-upload" id="bgLogoUploadArea">
+<label id="bgLogoDrop" class="bg-logo-drop"><input id="bgLogoFile" type="file" accept="image/png,image/jpeg,image/webp"><span id="bgLogoDropLabel">🖼 Chọn ảnh nền (ảnh 1)</span></label>
+<div id="bgLogoPreview" class="bg-logo-thumb" style="display:none"><img id="bgLogoThumb" src="" alt="Ảnh nền"><button id="bgLogoClear" title="Xóa ảnh nền">&#x2715; Xóa</button></div>
+</div>
+</div>
+<div class="corner-color-control" id="cornerColorControl"><span class="corner-color-copy"><strong>Màu khung bốn góc</strong><small>Áp dụng tức thì cho preview và PNG xuất.</small></span><div class="corner-color-inputs"><input id="cornerColorPicker" type="color" value="#c0c0c0" aria-label="Chọn màu khung bốn góc"><input id="cornerColorHex" class="corner-color-hex" type="text" value="#C0C0C0" maxlength="7" spellcheck="false" aria-label="Mã màu HEX"></div></div>
+<div class="buttons"><button id="match">Gắn theo tên file</button><button id="aiMatch" class="primary">Tự gắn theo thứ tự</button><button id="zip" class="success">Tải ZIP</button></div>
+<p id="aiStatus">Ưu tiên tên khớp; logo còn lại được gắn theo thứ tự dòng và thứ tự tải lên.</p>
+<div class="progress"><div id="bar"></div></div>
+<div class="stats"><span><b id="tc">0</b>team</span><span><b id="lc">0</b>logo</span><span><b id="mc">0</b>đã ghép</span></div>
+</article></section>
 <article><small>MATCH BOARD</small><h2>Bảng team</h2><p>Tên file xuất ưu tiên HEADPICS ID, PNG logo 1000×1000.</p><div class="table"><table><thead><tr><th>NO</th><th>TEAM</th><th>LOGO</th><th>HEADPICS ID</th><th>TRẠNG THÁI</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div></article>
-<article><small>MANUAL REVIEW</small><h2>Logo chưa ghép</h2><div id="unmatched" class="unmatched"></div></article></main><style>.unmatched{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));align-items:start}.unmatched .card{min-width:0;overflow:hidden;padding:12px;background:#09101a}.unmatched .card img{display:block;width:100%;height:160px;object-fit:contain;border:1px solid #293c55;border-radius:7px;background:linear-gradient(45deg,#101722 25%,#080d14 25%,#080d14 75%,#101722 75%);background-size:20px 20px}.unmatched .filename{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#dce8f8;font-size:12px}.unmatched .card select{width:100%;min-width:0}</style><script src="app.js"></script></body></html>
+<article><small>MANUAL REVIEW</small><h2>Logo chưa ghép</h2><div id="unmatched" class="unmatched"></div></article></main>
+<style>
+.unmatched{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));align-items:start}
+.unmatched .card{min-width:0;overflow:hidden;padding:12px;background:#09101a}
+.unmatched .card img{display:block;width:100%;height:160px;object-fit:contain;border:1px solid #293c55;border-radius:7px;background:linear-gradient(45deg,#101722 25%,#080d14 25%,#080d14 75%,#101722 75%);background-size:20px 20px}
+.unmatched .filename{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#dce8f8;font-size:12px}
+.unmatched .card select{width:100%;min-width:0}
+/* ===== LOGO NEN ===== */
+.bg-logo-section{margin-top:10px;border:1px solid #6d28d9;border-radius:8px;background:#0e0818;overflow:hidden}
+.bg-logo-toggle{margin-top:0!important;border:none!important;background:transparent!important;padding:11px 12px}
+.bg-logo-toggle strong{color:#c4b5fd}
+.bg-logo-upload{display:none;padding:8px 12px 12px;border-top:1px solid #4c1d95;gap:10px;align-items:center;flex-wrap:wrap}
+.bg-logo-upload.visible{display:flex}
+.bg-logo-drop{display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border:2px dashed #7c3aed;border-radius:8px;background:#160b2a;color:#c4b5fd;cursor:pointer;font-size:13px;font-weight:700;flex:1;min-width:160px;transition:border-color .2s,background .2s}
+.bg-logo-drop:hover{border-color:#a855f7;background:#1e0d38}
+.bg-logo-drop input{display:none}
+.bg-logo-thumb{display:flex;align-items:center;gap:10px;flex:1}
+.bg-logo-thumb img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid #7c3aed;background:linear-gradient(45deg,#2d1060,#600060)}
+#bgLogoClear{min-height:30px;padding:0 10px;background:#2d0a4e;border:1px solid #7c3aed;color:#e9d5ff;font-size:12px;border-radius:6px;cursor:pointer}
+#bgLogoClear:hover{background:#4a0d7a;border-color:#a855f7}
+.bg-logo-section.is-disabled{opacity:.4;pointer-events:none}
+</style>
+<script src="app.js"></script></body></html>
