@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id);let teams=[],logos=[],render;
+﻿const $=id=>document.getElementById(id);let teams=[],logos=[],render;
 const HEADPICS=[['ANDREW','902000006'],['KELLY','902000007'],['OLIVA','902000008'],['FORD','902000009'],['NIKITA','902000010'],['MISHA','902000012'],['MAXIM','902000030'],['KLA','902000062'],['PALOMA','902000080'],['MIGUEL','902000081'],['CAROLINE','902000096'],['ANTONIO','902000102'],['WUKONG','902000110'],['MOCO','902000119'],['HAYATO','902000130']];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const textKey=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\.[^.]+$/,'').replace(/[^A-Z0-9]+/g,' ').trim();
@@ -29,7 +29,7 @@ function parseTeams(text,append=false){
     const conflictingInput=idPreset&&avatarPreset&&idPreset[1]!==avatarPreset[1];
     const preset=conflictingInput?null:idPreset||avatarPreset||teamPreset;
     const headpicsSource=preset?(id?'input-id':avatar?'input-avatar':'input-name'):'';
-    const headpicsConflict=conflictingInput?`Avatar ${avatar} không khớp HEADPICS ID ${id}.`:'';
+    const headpicsConflict=conflictingInput?`Avatar ${avatar} khÃ´ng khá»›p HEADPICS ID ${id}.`:'';
     if(conflictingInput){avatar='';id=''}else if(preset){avatar=preset[0];id=preset[1]}
     return{no:no||String(base+i+1),team,avatar,id,file:null,headpicsSource,headpicsConflict};
   }).filter(x=>x.team);
@@ -65,7 +65,7 @@ function applyHeadpics(team,file){
   const avatarMatch=findExplicitHeadpics(team.avatar),filenameMatch=findExplicitHeadpics(file?.name),teamNameMatch=exactHeadpicsByName(team.team);
   const candidates=[avatarMatch,filenameMatch,teamNameMatch].filter(Boolean);
   const unique=new Map(candidates.map(item=>[item[1],item]));
-  if(unique.size>1){team.headpicsConflict='Avatar, tên team hoặc tên file đang chỉ tới các HEADPICS khác nhau.';return null}
+  if(unique.size>1){team.headpicsConflict='Avatar, tÃªn team hoáº·c tÃªn file Ä‘ang chá»‰ tá»›i cÃ¡c HEADPICS khÃ¡c nhau.';return null}
   if(unique.size!==1)return null;
   const found=[...unique.values()][0];
   if(teams.some(candidate=>candidate!==team&&candidate.id===found[1]))return null;
@@ -83,7 +83,7 @@ function assign(key,index){if(index==='')return;const file=logos.find(x=>x.key==
 function pickForTeam(index,file){if(!file||!/^image\/(png|jpeg|webp)$/i.test(file.type))return;const obj={file,name:file.name,url:URL.createObjectURL(file),key:crypto.randomUUID()};logos.push(obj);teams[index].file=obj;if(!applyHeadpics(teams[index],obj))applyHeadpicsByOrder(teams[index],index);render()}
 function setHeadpics(index,id){
   const item=headpicsById(id),team=teams[index];if(!team)return false;
-  if(item&&teams.some((candidate,candidateIndex)=>candidateIndex!==index&&candidate.id===item[1])){alert(`${item[0]} — ${item[1]} đã được chọn cho team khác.`);render();return false}
+  if(item&&teams.some((candidate,candidateIndex)=>candidateIndex!==index&&candidate.id===item[1])){alert(`${item[0]} â€” ${item[1]} Ä‘Ã£ Ä‘Æ°á»£c chá»n cho team khÃ¡c.`);render();return false}
   team.id=item?.[1]||'';team.avatar=item?.[0]||'';team.headpicsSource=item?'manual':'';team.headpicsConflict='';render();return true;
 }
 function detach(index){teams[index].file=null;render()}
@@ -91,13 +91,13 @@ function fileToDataUrl(file){return new Promise((resolve,reject)=>{const reader=
 
 async function aiAutoMatch(){
   const targets=teams.filter(t=>t.file&&!HEADPICS.some(([,id])=>id===t.id));
-  if(!targets.length){$('aiStatus').textContent='Tất cả logo đã có HEADPICS ID.';return}
+  if(!targets.length){$('aiStatus').textContent='Táº¥t cáº£ logo Ä‘Ã£ cÃ³ HEADPICS ID.';return}
   const button=$('aiMatch');button.disabled=true;let assigned=0;
-  try{for(let i=0;i<targets.length;i++){const team=targets[i];$('aiStatus').textContent=`AI đang phân tích ${i+1}/${targets.length}: ${team.team}`;$('bar').style.width=`${i/targets.length*100}%`;const response=await fetch('/api/ai-match',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({team:team.team,fileName:team.file.name,image:await fileToDataUrl(team.file.file),candidates:HEADPICS.map(([name,id])=>({name,id}))})});const data=await response.json();if(!response.ok)throw new Error(data.error||'AI không hoạt động');if(data.id&&Number(data.confidence)>=.7){team.id=data.id;team.avatar=data.name;team.ai={confidence:data.confidence,reason:data.reason};assigned++}render()}
-    $('bar').style.width='100%';$('aiStatus').textContent=`AI đã tự gắn ${assigned}/${targets.length} logo. Logo chưa chắc chắn được giữ lại để kiểm tra.`;
-  }catch(error){$('aiStatus').textContent=`Lỗi AI: ${error.message}`}finally{button.disabled=false}
+  try{for(let i=0;i<targets.length;i++){const team=targets[i];$('aiStatus').textContent=`AI Ä‘ang phÃ¢n tÃ­ch ${i+1}/${targets.length}: ${team.team}`;$('bar').style.width=`${i/targets.length*100}%`;const response=await fetch('/api/ai-match',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({team:team.team,fileName:team.file.name,image:await fileToDataUrl(team.file.file),candidates:HEADPICS.map(([name,id])=>({name,id}))})});const data=await response.json();if(!response.ok)throw new Error(data.error||'AI khÃ´ng hoáº¡t Ä‘á»™ng');if(data.id&&Number(data.confidence)>=.7){team.id=data.id;team.avatar=data.name;team.ai={confidence:data.confidence,reason:data.reason};assigned++}render()}
+    $('bar').style.width='100%';$('aiStatus').textContent=`AI Ä‘Ã£ tá»± gáº¯n ${assigned}/${targets.length} logo. Logo chÆ°a cháº¯c cháº¯n Ä‘Æ°á»£c giá»¯ láº¡i Ä‘á»ƒ kiá»ƒm tra.`;
+  }catch(error){$('aiStatus').textContent=`Lá»—i AI: ${error.message}`}finally{button.disabled=false}
 }
-async function checkAi(){try{const r=await fetch('/api/health'),d=await r.json();$('aiStatus').textContent=d.ai?`AI sẵn sàng · ${d.model}`:'Chưa có OPENAI_API_KEY trên server; vẫn có thể gắn theo tên file.';$('aiMatch').disabled=!d.ai}catch{$('aiStatus').textContent='Không kiểm tra được AI.'}}
+async function checkAi(){try{const r=await fetch('/api/health'),d=await r.json();$('aiStatus').textContent=d.ai?`AI sáºµn sÃ ng Â· ${d.model}`:'ChÆ°a cÃ³ OPENAI_API_KEY trÃªn server; váº«n cÃ³ thá»ƒ gáº¯n theo tÃªn file.';$('aiMatch').disabled=!d.ai}catch{$('aiStatus').textContent='KhÃ´ng kiá»ƒm tra Ä‘Æ°á»£c AI.'}}
 function localAutoMatch(){
   let attached=matchNames(),numbered=0;
   const free=logos.filter(file=>!teams.some(team=>team.file===file));
@@ -109,7 +109,7 @@ function localAutoMatch(){
   render();
   const needsReview=teams.filter(team=>team.file&&!hasUniqueHeadpicsId(team)).length;
   $('bar').style.width='100%';
-  $('aiStatus').textContent=`Đã gắn ${attached} logo · ${numbered} ID theo thứ tự${needsReview?` · ${needsReview} cần kiểm tra thủ công`:''}`;
+  $('aiStatus').textContent=`ÄÃ£ gáº¯n ${attached} logo Â· ${numbered} ID theo thá»© tá»±${needsReview?` Â· ${needsReview} cáº§n kiá»ƒm tra thá»§ cÃ´ng`:''}`;
 }
 
 function renderHeadpics(){
@@ -127,17 +127,47 @@ function renderHeadpics(){
 render=renderHeadpics;
 
 function clearAll(){
-  if(!confirm('Xóa toàn bộ bảng team và tất cả logo đã tải lên?'))return;
+  if(!confirm('XÃ³a toÃ n bá»™ báº£ng team vÃ  táº¥t cáº£ logo Ä‘Ã£ táº£i lÃªn?'))return;
   for(const logo of logos)if(logo.url)URL.revokeObjectURL(logo.url);
-  teams=[];logos=[];$('paste').value='';$('files').value='';$('bar').style.width='0%';$('aiStatus').textContent='Đã xóa toàn bộ bảng và logo. Sẵn sàng cho lượt mới.';render();
+  teams=[];logos=[];$('paste').value='';$('files').value='';$('bar').style.width='0%';$('aiStatus').textContent='ÄÃ£ xÃ³a toÃ n bá»™ báº£ng vÃ  logo. Sáºµn sÃ ng cho lÆ°á»£t má»›i.';render();
 }
 
 teams=HEADPICS.map(([avatar,id],i)=>({no:String(i+1),team:avatar,avatar,id,file:null,headpicsSource:'preset'}));
-$('aiMatch').onclick=localAutoMatch;$('aiMatch').disabled=false;$('aiStatus').textContent='Ưu tiên tên khớp; logo còn lại được gắn theo thứ tự dòng và thứ tự tải lên.';
+$('aiMatch').onclick=localAutoMatch;$('aiMatch').disabled=false;$('aiStatus').textContent='Æ¯u tiÃªn tÃªn khá»›p; logo cÃ²n láº¡i Ä‘Æ°á»£c gáº¯n theo thá»© tá»± dÃ²ng vÃ  thá»© tá»± táº£i lÃªn.';
 
 function drawStar(ctx,cx,cy,outer,inner){ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?inner:outer,x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath()}
 function drawCornerFrame(ctx){const inset=5,length=172;ctx.save();ctx.lineCap='square';ctx.lineJoin='miter';ctx.lineWidth=14;ctx.strokeStyle=cornerColor;ctx.shadowColor=cornerColor;ctx.shadowBlur=7;for(const [x,y,sx,sy] of [[inset,inset,1,1],[1000-inset,inset,-1,1],[inset,1000-inset,1,-1],[1000-inset,1000-inset,-1,-1]]){ctx.beginPath();ctx.moveTo(x,y+sy*length);ctx.lineTo(x,y);ctx.lineTo(x+sx*length,y);ctx.stroke()}ctx.restore()}
 function drawVietnamFlag(ctx){drawCornerFrame(ctx);const x=790,y=58,w=150,h=100,r=16;ctx.save();ctx.shadowColor='#0009';ctx.shadowBlur=18;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle='#da251d';ctx.fill();ctx.lineWidth=6;ctx.strokeStyle='#ffe8c7';ctx.stroke();ctx.shadowColor='transparent';drawStar(ctx,x+w/2,y+h/2,31,13);ctx.fillStyle='#ffdc35';ctx.fill();ctx.restore()}
+/**
+ * drawGoldRing â€” váº½ viá»n vÃ²ng trÃ²n vÃ ng giá»‘ng áº£nh tham chiáº¿u FF.
+ * cx,cy = tÃ¢m (500,500), ringR = bÃ¡n kÃ­nh tÃ¢m viá»n, ringW = Ä‘á»™ dÃ y viá»n (px).
+ */
+function drawGoldRing(ctx,cx=500,cy=500,ringR=455,ringW=28){
+  ctx.save();
+  // Outer dark shadow ring for depth
+  ctx.beginPath();ctx.arc(cx,cy,ringR+ringW/2+4,0,Math.PI*2);
+  ctx.lineWidth=6;ctx.strokeStyle='rgba(0,0,0,0.55)';ctx.stroke();
+  // Main gold gradient ring
+  const grad=ctx.createRadialGradient(cx,cy,ringR-ringW/2,cx,cy,ringR+ringW/2);
+  grad.addColorStop(0,'#b87a00');   // inner edge â€” dark gold
+  grad.addColorStop(0.25,'#e8a800'); // warm gold
+  grad.addColorStop(0.5,'#FFD700'); // bright center gold
+  grad.addColorStop(0.75,'#FFC200'); // warm gold
+  grad.addColorStop(1,'#cc8800');   // outer edge â€” darker gold
+  ctx.beginPath();ctx.arc(cx,cy,ringR,0,Math.PI*2);
+  ctx.lineWidth=ringW;
+  ctx.strokeStyle=grad;
+  ctx.shadowColor='rgba(255,200,0,0.55)';
+  ctx.shadowBlur=14;
+  ctx.stroke();
+  // Thin bright highlight on top
+  ctx.beginPath();ctx.arc(cx,cy,ringR,0,Math.PI*2);
+  ctx.lineWidth=3;
+  ctx.strokeStyle='rgba(255,240,100,0.45)';
+  ctx.shadowBlur=0;
+  ctx.stroke();
+  ctx.restore();
+}
 function exportPreservesOriginal(){return $('preserveOriginal')?.checked!==false}
 
 // ========== BACKGROUND LOGO STATE ==========
@@ -176,7 +206,7 @@ function loadBgLogoFile(file){
     bgLogoImage=img;bgLogoImage._url=url;
     const thumb=$('bgLogoThumb');if(thumb)thumb.src=url;
     const preview=$('bgLogoPreview');if(preview)preview.style.display='flex';
-    const dropLabel=$('bgLogoDropLabel');if(dropLabel)dropLabel.textContent='🖼 '+file.name;
+    const dropLabel=$('bgLogoDropLabel');if(dropLabel)dropLabel.textContent='ðŸ–¼ '+file.name;
   };
   img.onerror=()=>URL.revokeObjectURL(url);
   img.src=url;
@@ -186,16 +216,16 @@ function clearBgLogo(){
   bgLogoImage=null;
   const thumb=$('bgLogoThumb');if(thumb)thumb.src='';
   const preview=$('bgLogoPreview');if(preview)preview.style.display='none';
-  const dropLabel=$('bgLogoDropLabel');if(dropLabel)dropLabel.textContent='🖼 Chọn ảnh nền (ảnh 1)';
+  const dropLabel=$('bgLogoDropLabel');if(dropLabel)dropLabel.textContent='ðŸ–¼ Chá»n áº£nh ná»n (áº£nh 1)';
   const fileInput=$('bgLogoFile');if(fileInput)fileInput.value='';
 }
 
 // ========== CANVAS EXPORT ==========
 /**
  * makePng modes:
- *  preserveOriginal=true  → scale-to-fit, transparent bg (original behaviour)
- *  useBgLogo=true         → bg image fills circle, logo draws on top, outside circle = transparent
- *  default                → dark gradient bg + circular clip + frame/flag theo frameMode
+ *  preserveOriginal=true  â†’ scale-to-fit, transparent bg (original behaviour)
+ *  useBgLogo=true         â†’ bg image fills circle, logo draws on top, outside circle = transparent
+ *  default                â†’ dark gradient bg + circular clip + frame/flag theo frameMode
  */
 function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bgLogoEnabled(),frameMode=getFrameMode()){
   return new Promise((resolve,reject)=>{
@@ -207,7 +237,7 @@ function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bg
       ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
 
       if(preserveOriginal){
-        // Mode 1: preserve original – scale to fit, transparent outer
+        // Mode 1: preserve original â€“ scale to fit, transparent outer
         ctx.clearRect(0,0,1000,1000);
         const scale=Math.min(1000/logoImg.width,1000/logoImg.height);
         const w=logoImg.width*scale,h=logoImg.height*scale;
@@ -215,39 +245,38 @@ function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bg
 
       }else if(useBgLogo&&bgLogoImage){
         // Mode 2: background logo mode
-        // Step 1 – draw bg image clipped to circle (slightly inside logo's ring area)
+        // Step 1 - draw bg image clipped to circle
         ctx.clearRect(0,0,1000,1000);
         ctx.save();
         ctx.beginPath();
-        ctx.arc(500,500,444,0,Math.PI*2); // slightly larger than 440 to cover logo inner area
+        ctx.arc(500,500,444,0,Math.PI*2);
         ctx.clip();
         const bgImg=bgLogoImage;
         const bgScale=Math.max(888/bgImg.width,888/bgImg.height);
         const bgW=bgImg.width*bgScale,bgH=bgImg.height*bgScale;
         ctx.drawImage(bgImg,(1000-bgW)/2,(1000-bgH)/2,bgW,bgH);
         ctx.restore();
-
-        // Step 2 – draw the team logo on top (source-over preserves its alpha / gold ring)
+        // Step 2 - draw the team logo on top
         ctx.globalCompositeOperation='source-over';
         const logoScale=Math.max(880/logoImg.width,880/logoImg.height);
         const logoW=logoImg.width*logoScale,logoH=logoImg.height*logoScale;
         ctx.drawImage(logoImg,(1000-logoW)/2,(1000-logoH)/2,logoW,logoH);
-
-        // Step 3 – mask: keep only pixels within circle (transparent outside ring)
-        // Use a temporary canvas to draw the circular mask then composite destination-in
+        // Step 3 - mask: keep only pixels within circle (transparent outside ring)
         const maskCanvas=document.createElement('canvas');
         maskCanvas.width=1000;maskCanvas.height=1000;
         const mctx=maskCanvas.getContext('2d');
         mctx.beginPath();
-        mctx.arc(500,500,447,0,Math.PI*2); // match just outside the gold ring
+        mctx.arc(500,500,469,0,Math.PI*2);
         mctx.fillStyle='#fff';
         mctx.fill();
         ctx.globalCompositeOperation='destination-in';
         ctx.drawImage(maskCanvas,0,0);
         ctx.globalCompositeOperation='source-over';
+        // Step 4 - draw gold ring on top
+        drawGoldRing(ctx);
 
       }else{
-        // Mode 3: default – dark bg + circular clip + frame/flag theo frameMode
+        // Mode 3: default - dark bg + circular clip + gold ring + frame/flag theo frameMode
         const dark=ctx.createLinearGradient(0,0,1000,1000);
         dark.addColorStop(0,'#181d25');dark.addColorStop(.55,'#0f141c');dark.addColorStop(1,'#080c12');
         ctx.fillStyle=dark;ctx.fillRect(0,0,1000,1000);
@@ -257,14 +286,15 @@ function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bg
         const w=logoImg.width*scale,h=logoImg.height*scale;
         ctx.drawImage(logoImg,(1000-w)/2,(1000-h)/2,w,h);
         ctx.restore();
-        ctx.beginPath();ctx.arc(500,500,440,0,Math.PI*2);ctx.lineWidth=8;ctx.strokeStyle='#080b10';ctx.stroke();
+        // Draw gold ring (r=455, width=28 -> spans r=441 to r=469)
+        drawGoldRing(ctx);
         const fm=frameMode||getFrameMode();
         if(fm==='vietnam')drawVietnamFlag(ctx);
         else if(fm==='frame-only')drawCornerFrame(ctx);
-        // fm==='none' → không vẽ gì thêm
+        // fm==='none' -> no extra decoration
       }
 
-      canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Không tạo được PNG')),'image/png');
+      canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('KhÃ´ng táº¡o Ä‘Æ°á»£c PNG')),'image/png');
     };
     logoImg.onerror=reject;
     logoImg.src=fileObj.url;
@@ -274,14 +304,14 @@ function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bg
 function save(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
 async function downloadOne(i){
   const t=teams[i];if(!t?.file)return;
-  if(!headpicsById(t.id))return alert('Vui lòng chọn HEADPICS cho team trước khi xuất ảnh.');
-  if(duplicateHeadpicsIds().has(t.id))return alert(`HEADPICS ID ${t.id} đang bị trùng ở nhiều team.`);
+  if(!headpicsById(t.id))return alert('Vui lÃ²ng chá»n HEADPICS cho team trÆ°á»›c khi xuáº¥t áº£nh.');
+  if(duplicateHeadpicsIds().has(t.id))return alert(`HEADPICS ID ${t.id} Ä‘ang bá»‹ trÃ¹ng á»Ÿ nhiá»u team.`);
   save(await makePng(t.file,exportPreservesOriginal(),bgLogoEnabled(),getFrameMode()),`${t.id}.png`);
 }
 async function downloadZip(){
-  const matched=teams.filter(t=>t.file);if(!matched.length)return alert('Chưa có logo nào đã ghép.');
-  const missing=matched.filter(t=>!headpicsById(t.id));if(missing.length)return alert('Vui lòng chọn HEADPICS cho mọi team đã gắn logo trước khi tải ZIP.');
-  const duplicates=duplicateHeadpicsIds(matched);if(duplicates.size)return alert(`Không thể xuất ZIP vì HEADPICS ID bị trùng: ${[...duplicates].join(', ')}.`);
+  const matched=teams.filter(t=>t.file);if(!matched.length)return alert('ChÆ°a cÃ³ logo nÃ o Ä‘Ã£ ghÃ©p.');
+  const missing=matched.filter(t=>!headpicsById(t.id));if(missing.length)return alert('Vui lÃ²ng chá»n HEADPICS cho má»i team Ä‘Ã£ gáº¯n logo trÆ°á»›c khi táº£i ZIP.');
+  const duplicates=duplicateHeadpicsIds(matched);if(duplicates.size)return alert(`KhÃ´ng thá»ƒ xuáº¥t ZIP vÃ¬ HEADPICS ID bá»‹ trÃ¹ng: ${[...duplicates].join(', ')}.`);
   $('zip').disabled=true;const entries=[],preserve=exportPreservesOriginal(),useBg=bgLogoEnabled(),fm=getFrameMode();
   try{
     for(let i=0;i<matched.length;i++){
