@@ -143,7 +143,56 @@ function exportPreservesOriginal(){return $('preserveOriginal')?.checked!==false
 // ========== BACKGROUND LOGO STATE ==========
 let bgLogoImage=null; // HTMLImageElement when loaded
 
-function bgLogoEnabled(){return $('useBgLogo')?.checked===true&&bgLogoImage!==null}
+// --- Access control ---
+const BG_LOGO_KEY='ff_bglogo_unlocked_v1';
+const BG_LOGO_HASH='8e41c5378535957b3e559629fb3e1dcaaa994bb80cc0ef394236fcf053b2e239';
+
+async function hashPassword(pw){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function isBgLogoUnlocked(){
+  try{return localStorage.getItem(BG_LOGO_KEY)==='1'}catch{return false}
+}
+
+function applyBgLogoUnlockState(){
+  const section=$('bgLogoSection'),btn=$('bgLogoLockBtn');
+  if(!section||!btn)return;
+  if(isBgLogoUnlocked()){
+    section.classList.add('unlocked');
+    btn.textContent='🔓';
+    btn.title='Khóa lại tính năng nâng cao';
+  }else{
+    section.classList.remove('unlocked');
+    btn.textContent='🔒';
+    btn.title='Mở khóa tính năng nâng cao';
+    // reset checkbox khi bị khóa
+    if($('useBgLogo'))$('useBgLogo').checked=false;
+    syncBgLogoUploadVisibility();
+  }
+}
+
+async function promptBgLogoUnlock(){
+  if(isBgLogoUnlocked()){
+    // Đang mở → khóa lại
+    try{localStorage.removeItem(BG_LOGO_KEY)}catch{}
+    applyBgLogoUnlockState();
+    return;
+  }
+  const pw=prompt('Nhập mật khẩu để mở khóa tính năng nâng cao:');
+  if(!pw)return;
+  const h=await hashPassword(pw);
+  if(h===BG_LOGO_HASH){
+    try{localStorage.setItem(BG_LOGO_KEY,'1')}catch{}
+    applyBgLogoUnlockState();
+  }else{
+    alert('Mật khẩu không đúng.');
+  }
+}
+
+function bgLogoEnabled(){return isBgLogoUnlocked()&&$('useBgLogo')?.checked===true&&bgLogoImage!==null}
+
 function syncBgLogoAvailability(){
   const preserve=exportPreservesOriginal();
   const section=$('bgLogoSection');
@@ -299,6 +348,10 @@ $('cornerColorHex').onkeydown=e=>{if(e.key==='Enter'){if(!setCornerColor(e.curre
 syncCornerColorAvailability();
 
 // bg logo UI wiring
+if($('bgLogoLockBtn')){
+  $('bgLogoLockBtn').onclick=promptBgLogoUnlock;
+}
+applyBgLogoUnlockState();
 if($('useBgLogo')){
   $('useBgLogo').onchange=()=>{syncBgLogoUploadVisibility();render()};
 }

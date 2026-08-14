@@ -14,6 +14,7 @@
 <div id="bgLogoPreview" class="bg-logo-thumb" style="display:none"><img id="bgLogoThumb" src="" alt="Ảnh nền"><button id="bgLogoClear" title="Xóa ảnh nền">&#x2715; Xóa</button></div>
 </div>
 </div>
+<button id="bgLogoLockBtn" title="Mở khóa tính năng nâng cao">🔒</button>
 <div class="corner-color-control" id="cornerColorControl"><span class="corner-color-copy"><strong>Màu khung bốn góc</strong><small>Áp dụng tức thì cho preview và PNG xuất.</small></span><div class="corner-color-inputs"><input id="cornerColorPicker" type="color" value="#c0c0c0" aria-label="Chọn màu khung bốn góc"><input id="cornerColorHex" class="corner-color-hex" type="text" value="#C0C0C0" maxlength="7" spellcheck="false" aria-label="Mã màu HEX"></div></div>
 <div class="buttons"><button id="match">Gắn theo tên file</button><button id="aiMatch" class="primary">Tự gắn theo thứ tự</button><button id="zip" class="success">Tải ZIP</button></div>
 <p id="aiStatus">Ưu tiên tên khớp; logo còn lại được gắn theo thứ tự dòng và thứ tự tải lên.</p>
@@ -29,7 +30,8 @@
 .unmatched .filename{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#dce8f8;font-size:12px}
 .unmatched .card select{width:100%;min-width:0}
 /* ===== LOGO NEN ===== */
-.bg-logo-section{margin-top:10px;border:1px solid #6d28d9;border-radius:8px;background:#0e0818;overflow:hidden}
+.bg-logo-section{margin-top:10px;border:1px solid #6d28d9;border-radius:8px;background:#0e0818;overflow:hidden;display:none}
+.bg-logo-section.unlocked{display:block}
 .bg-logo-toggle{margin-top:0!important;border:none!important;background:transparent!important;padding:11px 12px}
 .bg-logo-toggle strong{color:#c4b5fd}
 .bg-logo-upload{display:none;padding:8px 12px 12px;border-top:1px solid #4c1d95;gap:10px;align-items:center;flex-wrap:wrap}
@@ -42,5 +44,8 @@
 #bgLogoClear{min-height:30px;padding:0 10px;background:#2d0a4e;border:1px solid #7c3aed;color:#e9d5ff;font-size:12px;border-radius:6px;cursor:pointer}
 #bgLogoClear:hover{background:#4a0d7a;border-color:#a855f7}
 .bg-logo-section.is-disabled{opacity:.4;pointer-events:none}
+/* lock button */
+#bgLogoLockBtn{display:block;margin-top:6px;background:none;border:none;color:#334155;font-size:11px;cursor:pointer;padding:0;letter-spacing:.03em;text-align:left}
+#bgLogoLockBtn:hover{color:#64748b}
 </style>
 <script src="app.js"></script></body></html>
