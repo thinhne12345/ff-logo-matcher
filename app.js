@@ -274,11 +274,11 @@ function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bg
         const logoW=logoImg.width*logoScale,logoH=logoImg.height*logoScale;
         ctx.drawImage(logoImg,(1000-logoW)/2,(1000-logoH)/2,logoW,logoH);
         ctx.restore();
-        // Step 3 – draw gold ring on top (outside the clip, so it paints over the edge)
+        // Step 3 – draw gold ring on top (only for useBgLogo mode)
         drawGoldRing(ctx);
 
       }else{
-        // Mode 3: default - dark bg + circular clip + gold ring + frame/flag theo frameMode
+        // Mode 3: default - dark bg + circular clip + frame/flag theo frameMode (no gold ring)
         const dark=ctx.createLinearGradient(0,0,1000,1000);
         dark.addColorStop(0,'#181d25');dark.addColorStop(.55,'#0f141c');dark.addColorStop(1,'#080c12');
         ctx.fillStyle=dark;ctx.fillRect(0,0,1000,1000);
@@ -288,8 +288,7 @@ function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bg
         const w=logoImg.width*scale,h=logoImg.height*scale;
         ctx.drawImage(logoImg,(1000-w)/2,(1000-h)/2,w,h);
         ctx.restore();
-        // Draw gold ring (r=455, width=28 -> spans r=441 to r=469)
-        drawGoldRing(ctx);
+        // No gold ring for vietnam/frame-only modes — gold ring only for useBgLogo mode
         const fm=frameMode||getFrameMode();
         if(fm==='vietnam')drawVietnamFlag(ctx);
         else if(fm==='frame-only')drawCornerFrame(ctx);
@@ -363,8 +362,8 @@ if(bgDrop){
 
 // frame mode wiring
 if($('frameMode')){
-  // restore persisted choice
-  try{const saved=localStorage.getItem(FRAME_MODE_KEY);if(saved)$('frameMode').value=saved}catch{}
+  // always default to 'vietnam' on page load — do not restore from localStorage
+  $('frameMode').value='vietnam';
   $('frameMode').onchange=()=>{try{localStorage.setItem(FRAME_MODE_KEY,$('frameMode').value)}catch{}render()};
 }
 syncFrameModeAvailability();
