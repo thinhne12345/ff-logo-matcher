@@ -269,8 +269,12 @@ function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bg
         const bgW=bgImg.width*bgScale,bgH=bgImg.height*bgScale;
         ctx.drawImage(bgImg,(1000-bgW)/2,(1000-bgH)/2,bgW,bgH);
         // Step 2 – draw team logo on top; transparent areas show bg through
+        // Scale logo to fit fully inside the circle (radius 441) without any corner clipping.
+        // The largest rectangle w×h that fits in a circle of radius R has its corners on the
+        // circle: half-diagonal = hypot(w/2, h/2) ≤ R  →  scale = 2R / hypot(w, h)
         ctx.globalCompositeOperation='source-over';
-        const logoScale=Math.min(882/logoImg.width,882/logoImg.height);
+        const logoRadius=441*0.97; // slight inset so logo doesn't graze the gold ring
+        const logoScale=(2*logoRadius)/Math.hypot(logoImg.width,logoImg.height);
         const logoW=logoImg.width*logoScale,logoH=logoImg.height*logoScale;
         ctx.drawImage(logoImg,(1000-logoW)/2,(1000-logoH)/2,logoW,logoH);
         ctx.restore();
