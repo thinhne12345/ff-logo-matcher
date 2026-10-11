@@ -18,12 +18,21 @@ const hasUniqueHeadpicsId=team=>Boolean(headpicsById(team?.id)&&!team.headpicsCo
 function logoNameMatchScore(team,file){const fileKey=norm(file?.name);if(!fileKey)return 0;const keys=[team.team,team.avatar,team.id].map(norm).filter(Boolean);let score=0;for(const key of keys){if(fileKey===key)score=Math.max(score,100);else if(key.length>=3&&hasWholePhrase(fileKey,key))score=Math.max(score,80)}return score}
 try{localStorage.removeItem?.('ff_logo_memory_v2')}catch{}
 
+function cleanTeamLine(value){
+  // Keep ordinary digits: they can be part of names such as “4 CHÚ MÈO”.
+  let line=String(value||'').replace(/🔟/gu,'1️⃣0️⃣').replace(/[\p{Extended_Pictographic}\p{Regional_Indicator}\p{Emoji_Modifier}\u200D][\uFE0E\uFE0F]?/gu,' ').trim();
+  const prefix=line.match(/^((?:[0-9]\uFE0F?\u20E3)+)\s*/u);
+  const no=prefix?prefix[1].replace(/[^0-9]/g,''):'';
+  if(prefix)line=line.slice(prefix[0].length);
+  line=line.replace(/[0-9#*]\uFE0F?\u20E3/gu,' ').replace(/[\uFE0E\uFE0F]/gu,'').replace(/[^\S\r\n\t]+/g,' ').trim();
+  return{line,no};
+}
 function parseTeams(text,append=false){
   const base=append?teams.length:0;
-  const rows=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map((line,i)=>{
-    const c=line.split(/\t|\||,|;/).map(x=>x.trim()).filter(Boolean);let no='',team='',avatar='',id='';
+  const rows=String(text||'').split(/\r?\n/).map(cleanTeamLine).filter(row=>row.line).map(({line,no:emojiNo},i)=>{
+    const c=line.split(/\t|\||,|;/).map(x=>x.trim()).filter(Boolean);let no=emojiNo,team='',avatar='',id='';
     if(c.length>1){if(/^\d+$/.test(c[0])){no=c[0];team=c[1]||'';avatar=c[2]||'';id=c[3]||''}else{team=c[0];avatar=c[1]||'';id=c[2]||''}}
-    else{const m=line.match(/^(?:(\d+)\s+)?(.+?)(?:\s+(\d{6,}))?$/);no=m?.[1]||'';team=m?.[2]||line;id=m?.[3]||''}
+    else{const m=line.match(emojiNo?/^(.+?)(?:\s+(\d{6,}))?$/:/^(?:(\d+)\s+)?(.+?)(?:\s+(\d{6,}))?$/);if(emojiNo){team=m?.[1]||line;id=m?.[2]||''}else{no=m?.[1]||'';team=m?.[2]||line;id=m?.[3]||''}}
     if(/^\d{6,}$/.test(avatar)&&!id){id=avatar;avatar=''}
     const idPreset=headpicsById(id),avatarPreset=exactHeadpicsByName(avatar),teamPreset=!avatar&&!id?exactHeadpicsByName(team):null;
     const conflictingInput=idPreset&&avatarPreset&&idPreset[1]!==avatarPreset[1];

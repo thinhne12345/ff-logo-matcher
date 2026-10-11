@@ -323,4 +323,50 @@ for (const [index, currentTeam] of api.getTeams().entries()) {
   assert.equal(currentTeam.headpicsSource, "order");
 }
 
+// Pasted emoji numbering must not consume digits belonging to the team name.
+const pastedRoster = `1️⃣ TIZI ESP
+2️⃣ 4 CHÚ MÈO
+3️⃣ FOURKING
+4️⃣ TL ESP
+5️⃣ HS ESP
+6️⃣ QUYENLE ?
+7️⃣ FAMILY
+8️⃣ 4TT
+9️⃣ HKT
+ AROMA
+1️⃣1️⃣ PTE
+1️⃣2️⃣ KTV ESP
+1️⃣3️⃣ LDK ESP
+1️⃣4️⃣ TITANIC
+1️⃣5️⃣ DTE`;
+const expectedNames = ['TIZI ESP','4 CHÚ MÈO','FOURKING','TL ESP','HS ESP','QUYENLE ?','FAMILY','4TT','HKT','AROMA','PTE','KTV ESP','LDK ESP','TITANIC','DTE'];
+reset([]);
+api.parseTeams(pastedRoster);
+assert.deepEqual(Array.from(api.getTeams(), row => row.team), expectedNames);
+assert.deepEqual(Array.from(api.getTeams(), row => row.no), expectedNames.map((_, i) => String(i+1)));
+api.setState(api.getTeams(), expectedNames.map((_, i) => logo(`upload-${i}.png`, `upload-${i}`)));
+api.localAutoMatch();
+for(const [i,row] of api.getTeams().entries()){
+  assert.equal(row.team,expectedNames[i]);
+  assert.equal(row.file.key,`upload-${i}`);
+  assert.equal(row.id,api.HEADPICS[i][1]);
+}
+
+// Decorative images, flag sequences, modifiers and keycaps without VS16.
+reset([]);
+api.parseTeams('🏆 1️⃣ TIZI 🔥 ESP\n🇻🇳 2⃣ 4 CHÚ MÈO 🐱\n🔟 AROMA\n💪🏽\n❤️ 1️⃣1️⃣ PTE');
+assert.deepEqual(Array.from(api.getTeams(), row => row.team), ['TIZI ESP','4 CHÚ MÈO','AROMA','PTE']);
+assert.deepEqual(Array.from(api.getTeams(), row => row.no), ['1','2','10','11']);
+api.parseTeams('1️⃣2️⃣ KTV ESP',true);
+assert.equal(api.getTeams()[4].team,'KTV ESP');
+assert.equal(api.getTeams()[4].no,'12');
+
+// Existing structured avatar/ID imports and plain numbered imports still work.
+reset([]);
+api.parseTeams('1️⃣ EOP | KELLY | 902000007\n2️⃣ HQ\tANDREW\t902000006\n3 WAG');
+assert.deepEqual(Array.from(api.getTeams(), row => row.team),['EOP','HQ','WAG']);
+assert.equal(api.getTeams()[0].id,'902000007');
+assert.equal(api.getTeams()[1].id,'902000006');
+assert.equal(api.getTeams()[2].no,'3');
+
 console.log("headpics-id tests passed");
