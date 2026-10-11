@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/corner-color.test.js && node tests/headpics-id.test.js && node --test tests/admin.test.js"
+    "test": "node tests/corner-color.test.js && node tests/headpics-id.test.js && node --test tests/admin.test.js tests/zip-export.test.js"
   },
   "engines": {
     "node": ">=22"

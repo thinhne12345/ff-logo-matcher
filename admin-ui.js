@@ -44,9 +44,9 @@ function fillLogoCircle(width,height,radius) {
   const scale = 2 * radius / Math.min(width,height);
   return {width:width*scale,height:height*scale};
 }
-async function makeAdminPng(fileObj) {
+async function makeAdminPng(fileObj, batchFrame) {
   // Even a forged option or JS flag must pass the server's authenticated route.
-  const frame = await adminFrameImage();
+  const frame = batchFrame || await adminFrameImage();
   const logo = await imageFromBlob(fileObj.file || await (await fetch(fileObj.url)).blob());
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 1000;
@@ -69,11 +69,15 @@ async function refreshAdminPreviews() {
   clearAdminPreviews();
   if (exportPreservesOriginal() || getFrameMode() !== 'admin-01') return;
   const generation = adminPreviewGeneration;
+  let frame;
+  try { frame = await adminFrameImage(); }
+  catch (error) { if (generation === adminPreviewGeneration) $('adminStatus').textContent = error.message; return; }
   // Sequential rendering bounds memory for large team lists.
   for (let i=0;i<teams.length;i++) {
+    if (generation !== adminPreviewGeneration) return;
     if (!teams[i].file) continue;
     try {
-      const blob = await makeAdminPng(teams[i].file);
+      const blob = await makeAdminPng(teams[i].file, frame);
       if (generation !== adminPreviewGeneration) return;
       const target = $(`adminPreview${i}`);
       if (!target) continue;

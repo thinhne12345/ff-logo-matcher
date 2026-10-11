@@ -239,10 +239,10 @@ function clearBgLogo(){
  *  useBgLogo=true         â†’ bg image fills circle, logo draws on top, outside circle = transparent
  *  default                â†’ dark gradient bg + circular clip + frame/flag theo frameMode
  */
-function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bgLogoEnabled(),frameMode=getFrameMode()){
+function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bgLogoEnabled(),frameMode=getFrameMode(),batchFrame){
   if(!preserveOriginal&&frameMode==='admin-01'){
     if(typeof makeAdminPng!=='function')return Promise.reject(new Error('Mẫu 01 chưa sẵn sàng.'));
-    return makeAdminPng(fileObj);
+    return makeAdminPng(fileObj,batchFrame);
   }
   return new Promise((resolve,reject)=>{
     const logoImg=new Image();
@@ -323,15 +323,32 @@ async function downloadZip(){
   const matched=teams.filter(t=>t.file);if(!matched.length)return alert('ChÆ°a cÃ³ logo nÃ o Ä‘Ã£ ghÃ©p.');
   const missing=matched.filter(t=>!headpicsById(t.id));if(missing.length)return alert('Vui lÃ²ng chá»n HEADPICS cho má»i team Ä‘Ã£ gáº¯n logo trÆ°á»›c khi táº£i ZIP.');
   const duplicates=duplicateHeadpicsIds(matched);if(duplicates.size)return alert(`KhÃ´ng thá»ƒ xuáº¥t ZIP vÃ¬ HEADPICS ID bá»‹ trÃ¹ng: ${[...duplicates].join(', ')}.`);
-  $('zip').disabled=true;const entries=[],preserve=exportPreservesOriginal(),useBg=bgLogoEnabled(),fm=getFrameMode();
+  if($('zip').disabled)return;
+  $('zip').disabled=true;const entries=new Array(matched.length),preserve=exportPreservesOriginal(),useBg=bgLogoEnabled(),fm=getFrameMode();
+  let completed=0;
+  $('bar').style.width='0%';
+  $('aiStatus').textContent='Đang chuẩn bị ảnh để xuất ZIP…';
   try{
-    for(let i=0;i<matched.length;i++){
-      const t=matched[i],blob=await makePng(t.file,preserve,useBg,fm);
-      entries.push({name:`${t.id}.png`,data:new Uint8Array(await blob.arrayBuffer())});
-      $('bar').style.width=`${(i+1)/matched.length*100}%`;
+    // Authorize once per export; reuse the decoded frame only within this batch.
+    const frame=!preserve&&fm==='admin-01'?await adminFrameImage():undefined;
+    // Limit canvas memory while overlapping image decoding and PNG encoding.
+    for(let start=0;start<matched.length;start+=3){
+      const results=await Promise.allSettled(matched.slice(start,start+3).map(async(t,index)=>{
+        const blob=await makePng(t.file,preserve,useBg,fm,frame);
+        entries[start+index]={name:`${t.id}.png`,data:new Uint8Array(await blob.arrayBuffer())};
+        completed++;
+        $('bar').style.width=`${completed/matched.length*95}%`;
+        $('aiStatus').textContent=`Đang tạo PNG ${completed}/${matched.length}…`;
+      }));
+      const failed=results.find(result=>result.status==='rejected');
+      if(failed)throw failed.reason;
     }
+    $('aiStatus').textContent='Đang đóng gói ZIP…';
+    await new Promise(resolve=>setTimeout(resolve,0));
     save(buildZip(entries),'ff_team_avatars_1000x1000.zip');
-  }catch(error){alert(error.message||'Không xuất được ZIP.')}finally{$('zip').disabled=false}
+    $('bar').style.width='100%';
+    $('aiStatus').textContent=`Đã tạo ZIP gồm ${completed} ảnh. Trình duyệt đang tải file xuống.`;
+  }catch(error){$('aiStatus').textContent='Xuất ZIP thất bại. Bạn có thể thử lại.';alert(error.message||'Không xuất được ZIP.')}finally{$('zip').disabled=false}
 }
 
 let crcTable;function crc32(bytes){if(!crcTable){crcTable=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;crcTable[n]=c>>>0}}let crc=0xffffffff;for(const b of bytes)crc=crcTable[(crc^b)&255]^(crc>>>8);return(crc^0xffffffff)>>>0}
