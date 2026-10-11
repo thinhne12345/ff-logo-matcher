@@ -2,6 +2,8 @@
 let adminSession = false;
 let adminPreviewGeneration = 0;
 const adminPreviewUrls = new Set();
+let adminPasswordConfigured = false;
+let adminGithubConfigured = false;
 
 function clearAdminPreviews() {
   adminPreviewGeneration++;
@@ -15,7 +17,10 @@ function resetAdminFrame() {
   if (option) option.remove();
   if ($('frameMode').value === 'admin-01' || !$('frameMode').value) $('frameMode').value = 'vietnam';
   $('adminLogout').hidden = true;
-  $('adminLogin').hidden = false;
+  $('adminLogin').hidden = !adminGithubConfigured;
+  $('adminPasswordForm').hidden = false;
+  $('adminPassword').disabled = !adminPasswordConfigured;
+  $('adminPasswordSubmit').disabled = !adminPasswordConfigured;
   $('adminStatus').textContent = 'Mẫu 01 dành riêng cho admin.';
 }
 async function adminFrameImage() {
@@ -77,6 +82,22 @@ async function refreshAdminPreviews() {
   }
 }
 async function initAdmin() {
+  $('adminPasswordForm').onsubmit = async event => {
+    event.preventDefault();
+    const password = $('adminPassword').value;
+    $('adminPasswordSubmit').disabled = true;
+    $('adminStatus').textContent = 'Đang đăng nhập…';
+    try {
+      const response = await fetch('/api/admin/login', {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});
+      const data = await response.json();
+      if (!response.ok || data.admin !== true) throw new Error(data.error || 'Không thể đăng nhập admin.');
+      await checkAdminSession();
+    } catch (error) { $('adminStatus').textContent = error.message; }
+    finally {
+      $('adminPassword').value = '';
+      $('adminPasswordSubmit').disabled = !adminPasswordConfigured;
+    }
+  };
   $('adminLogout').onclick = async () => {
     try {
       const response = await fetch('/api/admin/logout',{method:'POST',credentials:'same-origin'});
@@ -84,22 +105,32 @@ async function initAdmin() {
       resetAdminFrame(); render();
     } catch (error) { $('adminStatus').textContent = error.message; }
   };
+  await checkAdminSession();
+}
+async function checkAdminSession() {
   try {
     const response = await fetch('/api/admin/session',{credentials:'same-origin',cache:'no-store'});
     if (!response.ok) throw new Error('Không kiểm tra được quyền admin.');
     const data = await response.json(); adminSession = data.admin === true;
+    adminPasswordConfigured = data.passwordConfigured === true;
+    adminGithubConfigured = data.githubConfigured === true;
+    $('adminPassword').disabled = !adminPasswordConfigured;
+    $('adminPasswordSubmit').disabled = !adminPasswordConfigured;
     if (adminSession) {
       const option = document.createElement('option'); option.value = 'admin-01';
-      option.textContent = 'Mẫu 01 · Xanh bạc (Admin)'; $('frameMode').append(option);
+      option.textContent = 'Mẫu 01 · Xanh bạc (Admin)';
+      if (!document.querySelector('option[value="admin-01"]')) $('frameMode').append(option);
       $('adminLogin').hidden = true; $('adminLogout').hidden = false;
-      $('adminStatus').textContent = 'Admin thinhne12345 · Mẫu 01 đã mở khóa.';
+      $('adminPasswordForm').hidden = true;
+      $('adminStatus').textContent = 'Đã đăng nhập admin · Mẫu 01 đã mở khóa.';
       $('frameMode').value = 'admin-01';
       $('preserveOriginal').checked = false;
       $('useBgLogo').checked = false;
       syncFrameModeAvailability(); syncBgLogoAvailability(); render();
     } else {
-      $('adminStatus').textContent = data.configured ? 'Đăng nhập GitHub để mở mẫu 01 của admin.' : 'Mẫu 01 đang chờ cấu hình đăng nhập admin.';
-      $('adminLogin').hidden = !data.configured;
+      $('adminPasswordForm').hidden = false;
+      $('adminStatus').textContent = adminPasswordConfigured ? 'Nhập mật khẩu để mở mẫu 01 của admin.' : (adminGithubConfigured ? 'Đăng nhập GitHub để mở mẫu 01 của admin.' : 'Mẫu 01 đang chờ cấu hình đăng nhập admin.');
+      $('adminLogin').hidden = !adminGithubConfigured;
     }
   } catch (error) { $('adminStatus').textContent = error.message; }
 }

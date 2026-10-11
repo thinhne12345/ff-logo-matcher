@@ -234,4 +234,5 @@ tbody tr:hover { background: rgba(255,255,255,.025); }
 
 
 /* Admin frame 01 */
+.admin-login-fields{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.admin-login-fields input{flex:1;min-width:160px;width:auto}.admin-login-fields button{white-space:nowrap}.admin-access form label{font-size:13px;color:#a9ddff}
 .admin-access{margin-top:14px;padding:14px;border:1px solid #237ba9;border-radius:10px;background:#091822}.admin-access p{font-size:13px;color:#a9ddff}.admin-access small{display:block;margin-top:10px;color:#91a9bf}.admin-access a{display:inline-block;padding:10px 14px;color:#e8f7ff;border:1px solid #1f9bd1;border-radius:8px;text-decoration:none}.admin-access [hidden]{display:none!important}.admin-logo-preview{width:96px;height:96px;display:grid;place-items:center}.admin-logo-preview img{width:96px;height:96px;object-fit:contain}
