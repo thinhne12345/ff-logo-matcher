@@ -14,6 +14,7 @@
 <div id="bgLogoPreview" class="bg-logo-thumb" style="display:none"><img id="bgLogoThumb" src="" alt="Ảnh nền"><button id="bgLogoClear" title="Xóa ảnh nền">&#x2715; Xóa</button></div>
 </div>
 </div>
+<section id="adminAccess" class="admin-access" aria-label="Quyền admin"><strong>Khung riêng của admin</strong><p id="adminStatus" role="status">Đang kiểm tra phiên đăng nhập…</p><a id="adminLogin" href="/auth/github" hidden>Đăng nhập GitHub admin</a><button id="adminLogout" type="button" hidden>Đăng xuất admin</button><small>Mẫu 01: giữ logo gốc bên trong, khung xanh bạc bên ngoài. Khi chọn mẫu này, nền phụ, cờ và màu khung cũ không áp dụng.</small></section>
 <div class="frame-mode-control" id="frameModeControl">
 <span class="frame-mode-label"><strong>Chế độ khung &amp; cờ</strong><small>Áp dụng khi xuất avatar tròn (không áp dụng khi giữ nguyên logo gốc).</small></span>
 <select id="frameMode" aria-label="Chọn chế độ khung">
@@ -60,4 +61,4 @@
 #frameMode:hover,#frameMode:focus{border-color:var(--accent);outline:none}
 @keyframes fadeSlide{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
 </style>
-<script src="app.js"></script></body></html>
+<script src="app.js"></script><script src="admin-ui.js"></script></body></html>

@@ -1,6 +1,8 @@
 const http=require('http');
 const fs=require('fs');
 const path=require('path');
+const crypto=require('node:crypto');
+const {createAdminAuth}=require('./admin-auth');
 const root=__dirname;
 const envFile=path.join(root,'.env');
 if(fs.existsSync(envFile))for(const line of fs.readFileSync(envFile,'utf8').split(/\r?\n/)){const match=line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);if(match&&!process.env[match[1]])process.env[match[1]]=match[2].replace(/^['"]|['"]$/g,'')}
@@ -28,11 +30,38 @@ async function aiMatch(req,res){
   }catch(error){json(res,500,{error:error.message||'AI không xử lý được ảnh.'})}
 }
 
-http.createServer(async(req,res)=>{
+function createServer(options={}) {
+const env=options.env||process.env;
+const auth=createAdminAuth(env,options.fetch||fetch);
+return http.createServer(async(req,res)=>{
+  res.setHeader('X-Content-Type-Options','nosniff');
+  res.setHeader('Referrer-Policy','no-referrer');
+  let url;
+  try { url=new URL(req.url,'http://localhost'); decodeURIComponent(url.pathname); }
+  catch { return json(res,400,{error:'Invalid URL'}); }
+  if(await auth.handle(req,res,url))return;
+  if(url.pathname==='/api/admin/frame-01.png'){
+    res.setHeader('Cache-Control','private, no-store');
+    if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
+    if(!auth.isAdmin(req))return json(res,403,{error:'Hãy đăng nhập tài khoản admin để dùng mẫu 01.'});
+    try {
+      if(!/^[a-f0-9]{64}$/i.test(env.FRAME_ASSET_KEY||''))throw new Error('key');
+      const data=options.frameAsset||fs.readFileSync(path.join(root,'private','frame-01.enc'));
+      const decipher=crypto.createDecipheriv('aes-256-gcm',Buffer.from(env.FRAME_ASSET_KEY,'hex'),data.subarray(0,12));
+      decipher.setAuthTag(data.subarray(12,28));
+      const image=Buffer.concat([decipher.update(data.subarray(28)),decipher.final()]);
+      res.writeHead(200,{'Content-Type':'image/png'});return res.end(image);
+    } catch { return json(res,503,{error:'Mẫu 01 chưa được cấu hình trên máy chủ.'}); }
+  }
   if(req.method==='GET'&&req.url==='/api/health')return json(res,200,{ai:Boolean(process.env.OPENAI_API_KEY),model:process.env.OPENAI_MODEL||'gpt-5.6-sol'});
   if(req.method==='POST'&&req.url==='/api/ai-match')return aiMatch(req,res);
-  const urlPath=req.url==='/'?'index.html':decodeURIComponent(req.url.split('?')[0].replace(/^\//,''));
-  const filePath=path.resolve(root,urlPath);
-  if(!filePath.startsWith(path.resolve(root)))return res.writeHead(403).end();
+  const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/styles.css':'styles.css','/admin-ui.js':'admin-ui.js'};
+  const publicFile=publicFiles[url.pathname];
+  if(!Object.hasOwn(publicFiles,url.pathname))return res.writeHead(404).end('Not found');
+  if(!['GET','HEAD'].includes(req.method))return res.writeHead(405).end();
+  const filePath=path.join(root,publicFile);
   fs.readFile(filePath,(error,data)=>{if(error)return res.writeHead(404).end('Not found');res.writeHead(200,{'Content-Type':types[path.extname(filePath)]||'application/octet-stream'});res.end(data)});
-}).listen(process.env.PORT||3000,()=>console.log(`FF Logo Matcher: http://localhost:${process.env.PORT||3000}`));
+});
+}
+if(require.main===module)createServer().listen(process.env.PORT||3000,()=>console.log(`FF Logo Matcher: http://localhost:${process.env.PORT||3000}`));
+module.exports={createServer};
