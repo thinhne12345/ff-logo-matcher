@@ -9,14 +9,19 @@ const testPassword='fixture-admin-password';
 const testSalt='0123456789abcdef0123456789abcdef';
 const testHash=`scrypt:${testSalt}:${crypto.scryptSync(testPassword,testSalt,64).toString('hex')}`;
 
-async function fixture(t,userId=130863341,configured=true,passwordHash=testHash) {
+async function fixture(t,userId=130863341,configured=true,passwordHash=testHash,useEnvKey=true,tamperWrappedKey=false) {
   const key=crypto.randomBytes(32),nonce=crypto.randomBytes(12);
   const plaintext=Buffer.from('private-test-image');
   const cipher=crypto.createCipheriv('aes-256-gcm',key,nonce);
   const encrypted=Buffer.concat([cipher.update(plaintext),cipher.final()]);
   const frameAsset=Buffer.concat([nonce,cipher.getAuthTag(),encrypted]);
+  const wrapSalt=crypto.randomBytes(16).toString('hex'),wrapIv=crypto.randomBytes(12);
+  const wrapper=crypto.createCipheriv('aes-256-gcm',crypto.scryptSync(testPassword,wrapSalt,32),wrapIv);
+  const wrappedData=Buffer.concat([wrapper.update(key),wrapper.final()]);
+  const wrappedFrameKey={salt:wrapSalt,iv:wrapIv.toString('hex'),tag:wrapper.getAuthTag().toString('hex'),data:wrappedData.toString('hex')};
+  if(tamperWrappedKey)wrappedFrameKey.tag='0'.repeat(32);
   let lastExchange;
-  const server=createServer({env:{APP_ORIGIN:'http://localhost:3000',ADMIN_PASSWORD_HASH:passwordHash,GITHUB_CLIENT_ID:configured?'test-client':'',GITHUB_CLIENT_SECRET:configured?'test-secret':'',FRAME_ASSET_KEY:key.toString('hex')},frameAsset,
+  const server=createServer({env:{APP_ORIGIN:'http://localhost:3000',ADMIN_PASSWORD_HASH:passwordHash,GITHUB_CLIENT_ID:configured?'test-client':'',GITHUB_CLIENT_SECRET:configured?'test-secret':'',FRAME_ASSET_KEY:useEnvKey?key.toString('hex'):''},frameAsset,wrappedFrameKey,
     fetch:async(url,options)=>{
       if(url.endsWith('/access_token')){lastExchange=JSON.parse(options.body);return {ok:true,json:async()=>({access_token:'test-token'})};}
       assert.equal(options.headers.Authorization,'Bearer test-token');
@@ -42,7 +47,7 @@ test('anonymous users cannot fetch private files or bypass admin with forged fla
     const response=await get(route,{headers:{cookie:'ff_admin=true; admin=true'}});
     assert.equal(response.status,403);assert.match(response.headers.get('cache-control'),/no-store/);
   }
-  for(const route of ['/.env','/server.js','/admin-auth.js','/private/frame-01.enc','/private/admin-password.json','/%2eenv','/..%2f.env','/tests/admin.test.js']) assert.equal((await get(route)).status,404,route);
+  for(const route of ['/.env','/server.js','/admin-auth.js','/private/frame-01.enc','/private/admin-password.json','/private/frame-key.json','/%2eenv','/..%2f.env','/tests/admin.test.js']) assert.equal((await get(route)).status,404,route);
   assert.equal((await get('/%zz')).status,400);
   for(const route of ['/','/app.js','/admin-ui.js','/styles.css'])assert.equal((await get(route)).status,200);
 });
@@ -87,8 +92,8 @@ test('complete logo fits inside circular medallion for square, portrait and land
   }
 });
 
-test('password login works without OAuth and grants and revokes private frame access',async t=>{
-  const {get,plaintext}=await fixture(t,130863341,false);
+test('password login works without OAuth or environment frame key and revokes private frame access',async t=>{
+  const {get,plaintext}=await fixture(t,130863341,false,testHash,false);
   const status=await (await get('/api/admin/session')).json();
   assert.equal(status.passwordConfigured,true);assert.equal(status.githubConfigured,false);
   const login=password=>get('/api/admin/login',{method:'POST',headers:{origin:'http://localhost:3000','content-type':'application/json'},body:JSON.stringify({password})});
@@ -103,6 +108,14 @@ test('password login works without OAuth and grants and revokes private frame ac
   assert.equal(frame.status,200);assert.deepEqual(Buffer.from(await frame.arrayBuffer()),plaintext);
   assert.equal((await get('/api/admin/logout',{method:'POST',headers})).status,200);
   assert.equal((await get('/api/admin/frame-01.png',{headers})).status,403);
+});
+
+test('tampered encrypted frame key fails closed without granting a session',async t=>{
+  const {get}=await fixture(t,130863341,false,testHash,false,true);
+  const response=await get('/api/admin/login',{method:'POST',headers:{origin:'http://localhost:3000','content-type':'application/json'},body:JSON.stringify({password:testPassword})});
+  assert.equal(response.status,503);assert.equal(response.headers.getSetCookie().length,0);
+  assert.equal((await (await get('/api/admin/session')).json()).admin,false);
+  assert.equal((await get('/api/admin/frame-01.png')).status,403);
 });
 
 test('password endpoint rejects cross-origin, malformed requests and brute force',async t=>{

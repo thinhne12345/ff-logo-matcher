@@ -32,7 +32,7 @@ async function aiMatch(req,res){
 
 function createServer(options={}) {
 const env=options.env||process.env;
-const auth=createAdminAuth(env,options.fetch||fetch);
+const auth=createAdminAuth(env,options.fetch||fetch,options.wrappedFrameKey);
 return http.createServer(async(req,res)=>{
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('Referrer-Policy','no-referrer');
@@ -45,9 +45,10 @@ return http.createServer(async(req,res)=>{
     if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
     if(!auth.isAdmin(req))return json(res,403,{error:'Hãy đăng nhập tài khoản admin để dùng mẫu 01.'});
     try {
-      if(!/^[a-f0-9]{64}$/i.test(env.FRAME_ASSET_KEY||''))throw new Error('key');
+      const frameKey=auth.getFrameKey(req);
+      if(!frameKey||frameKey.length!==32)throw new Error('key');
       const data=options.frameAsset||fs.readFileSync(path.join(root,'private','frame-01.enc'));
-      const decipher=crypto.createDecipheriv('aes-256-gcm',Buffer.from(env.FRAME_ASSET_KEY,'hex'),data.subarray(0,12));
+      const decipher=crypto.createDecipheriv('aes-256-gcm',frameKey,data.subarray(0,12));
       decipher.setAuthTag(data.subarray(12,28));
       const image=Buffer.concat([decipher.update(data.subarray(28)),decipher.final()]);
       res.writeHead(200,{'Content-Type':'image/png'});return res.end(image);

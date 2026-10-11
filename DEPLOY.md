@@ -6,6 +6,8 @@
 - Mật khẩu hoạt động ngay khi triển khai, không cần tạo GitHub OAuth app. Có thể ghi đè bản băm bằng biến môi trường `ADMIN_PASSWORD_HASH`, hoặc đặt biến này rỗng để tắt đăng nhập mật khẩu.
 - Giới hạn 5 lần thử trong 15 phút trên mỗi địa chỉ kết nối; phiên hết hạn sau 8 giờ hoặc khi máy chủ khởi động lại. Sau proxy, nhiều người dùng có thể cùng chịu giới hạn này.
 - GitHub là phương án tùy chọn, chỉ dành cho tài khoản có ID `130863341` (thinhne12345).
+- Không cần đặt `FRAME_ASSET_KEY` trên Render khi đăng nhập bằng mật khẩu hiện tại. `private/frame-key.json` chứa khóa khung được mã hóa AES-256-GCM bằng khóa dẫn xuất scrypt từ mật khẩu, với salt riêng biệt. Khóa khung chỉ được giải mã sau khi xác thực đúng mật khẩu và lưu trong phiên ở bộ nhớ máy chủ; không gửi cho trình duyệt.
+- Nếu đổi mật khẩu bằng `ADMIN_PASSWORD_HASH`, phải mã hóa lại `private/frame-key.json` bằng mật khẩu mới, hoặc cung cấp `FRAME_ASSET_KEY` đúng. Không thể dùng bản băm xác thực mật khẩu làm khóa giải mã.
 - Máy chủ kiểm tra phiên trước mỗi lần trả ảnh khung riêng.
 - Logo gốc nằm trọn trong vòng tròn; preview và PNG/ZIP dùng cùng hàm ghép.
 - Đăng xuất hủy phiên và xóa preview của khung riêng.
@@ -20,7 +22,7 @@
    - `APP_ORIGIN=https://ff-logo-matcher-1000.onrender.com`
    - `GITHUB_CLIENT_ID`: Client ID của OAuth app (tùy chọn).
    - `GITHUB_CLIENT_SECRET`: Client Secret của OAuth app (tùy chọn).
-   - `FRAME_ASSET_KEY`: giữ nguyên giá trị trong tệp `.env` local. Khóa này khớp với `private/frame-01.enc`; thay bằng khóa mới sẽ không giải mã được khung.
+   - `FRAME_ASSET_KEY`: chỉ bắt buộc nếu đăng nhập GitHub hoặc đổi mật khẩu mà chưa mã hóa lại khóa khung. Giữ nguyên giá trị trong tệp `.env` local. Khóa này khớp với `private/frame-01.enc`; thay bằng khóa mới sẽ không giải mã được khung.
 4. Giữ các biến môi trường đang dùng trên Render. Không đưa `.env` hoặc các khóa bí mật vào GitHub hay gói mã nguồn.
 5. Deploy bản cập nhật và chờ dịch vụ hoạt động.
 

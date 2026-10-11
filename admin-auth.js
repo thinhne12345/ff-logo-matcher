@@ -2,12 +2,13 @@ const crypto = require('node:crypto');
 const {promisify} = require('node:util');
 const scrypt = promisify(crypto.scrypt);
 const defaultPasswordHash = require('./private/admin-password.json').hash;
+const defaultWrappedFrameKey = require('./private/frame-key.json');
 
 const OWNER_ID = '130863341'; // thinhne12345; numeric ID survives username changes.
 const SESSION_TTL = 8 * 60 * 60 * 1000;
 const STATE_TTL = 10 * 60 * 1000;
 
-function createAdminAuth(env = process.env, request = fetch) {
+function createAdminAuth(env = process.env, request = fetch, wrappedFrameKey = defaultWrappedFrameKey) {
   const sessions = new Map(), states = new Map(), attempts = new Map();
   const origin = env.APP_ORIGIN || 'https://ff-logo-matcher-1000.onrender.com';
   const secure = !origin.startsWith('http://localhost:');
@@ -29,10 +30,28 @@ function createAdminAuth(env = process.env, request = fetch) {
     res.writeHead(status, {'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store'});
     res.end(JSON.stringify(data));
   }
-  function newSession(req) {
+  function getFrameKey(req) {
+    prune(sessions);
+    const session = sessions.get(cookies(req)[cookieName]);
+    if (!session) return null;
+    return session.frameKey || (/^[a-f0-9]{64}$/i.test(env.FRAME_ASSET_KEY || '') ? Buffer.from(env.FRAME_ASSET_KEY,'hex') : null);
+  }
+  async function unlockFrameKey(password) {
+    if (/^[a-f0-9]{64}$/i.test(env.FRAME_ASSET_KEY || '')) return Buffer.from(env.FRAME_ASSET_KEY,'hex');
+    // Independent salt: the public password-verification digest is never a decryption key.
+    const key = await scrypt(password,wrappedFrameKey.salt,32);
+    try {
+      const decipher = crypto.createDecipheriv('aes-256-gcm',key,Buffer.from(wrappedFrameKey.iv,'hex'));
+      decipher.setAuthTag(Buffer.from(wrappedFrameKey.tag,'hex'));
+      const frameKey = Buffer.concat([decipher.update(Buffer.from(wrappedFrameKey.data,'hex')),decipher.final()]);
+      if (frameKey.length !== 32) throw new Error('key');
+      return frameKey;
+    } finally { key.fill(0); }
+  }
+  function newSession(req, frameKey) {
     prune(sessions);
     const previous = cookies(req)[cookieName]; if (previous) sessions.delete(previous);
-    const session = token(); sessions.set(session,{expires:Date.now()+SESSION_TTL});
+    const session = token(); sessions.set(session,{expires:Date.now()+SESSION_TTL,frameKey});
     return cookie(cookieName,session,SESSION_TTL/1000);
   }
   async function readLogin(req) {
@@ -73,8 +92,9 @@ function createAdminAuth(env = process.env, request = fetch) {
         if (!crypto.timingSafeEqual(actual,Buffer.from(digest,'hex'))) {
           respond(res,401,{error:'Mật khẩu admin không đúng.'}); return true;
         }
+        const frameKey = await unlockFrameKey(password);
         attempts.delete(peer);
-        res.setHeader('Set-Cookie',newSession(req)); respond(res,200,{admin:true});
+        res.setHeader('Set-Cookie',newSession(req,frameKey)); respond(res,200,{admin:true});
       } catch { respond(res,503,{error:'Không thể đăng nhập. Vui lòng thử lại.'}); }
       return true;
     }
@@ -117,6 +137,6 @@ function createAdminAuth(env = process.env, request = fetch) {
     }
     return false;
   }
-  return {handle,isAdmin};
+  return {handle,isAdmin,getFrameKey};
 }
 module.exports = {createAdminAuth};
