@@ -82,12 +82,13 @@ test('OAuth rejects missing cookie, invalid state and missing configuration',asy
   const disabled=await fixture(t,130863341,false);
   assert.equal((await disabled.get('/auth/github')).status,503);
 });
-test('complete logo fits inside circular medallion for square, portrait and landscape',()=>{
+test('logo fills circular medallion for square, portrait and landscape without stretching',()=>{
   const source=fs.readFileSync(path.join(__dirname,'../admin-ui.js'),'utf8').replace(/initAdmin\(\);\s*$/,'');
   const context=vm.createContext({}); vm.runInContext(source,context);
   for(const [width,height] of [[1254,1254],[2000,300],[200,1600]]){
-    const result=context.fitLogoInsideCircle(width,height,363);
-    assert.ok(Math.hypot(result.width/2,result.height/2)<=363.000001);
+    const result=context.fillLogoCircle(width,height,373);
+    assert.ok(result.width>=746 && result.height>=746);
+    assert.ok(Math.abs(Math.min(result.width,result.height)-746)<1e-10);
     assert.ok(Math.abs(result.width/result.height-width/height)<1e-10);
   }
 });

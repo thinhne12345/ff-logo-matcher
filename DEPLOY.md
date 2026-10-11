@@ -9,7 +9,7 @@
 - Không cần đặt `FRAME_ASSET_KEY` trên Render khi đăng nhập bằng mật khẩu hiện tại. `private/frame-key.json` chứa khóa khung được mã hóa AES-256-GCM bằng khóa dẫn xuất scrypt từ mật khẩu, với salt riêng biệt. Khóa khung chỉ được giải mã sau khi xác thực đúng mật khẩu và lưu trong phiên ở bộ nhớ máy chủ; không gửi cho trình duyệt.
 - Nếu đổi mật khẩu bằng `ADMIN_PASSWORD_HASH`, phải mã hóa lại `private/frame-key.json` bằng mật khẩu mới, hoặc cung cấp `FRAME_ASSET_KEY` đúng. Không thể dùng bản băm xác thực mật khẩu làm khóa giải mã.
 - Máy chủ kiểm tra phiên trước mỗi lần trả ảnh khung riêng.
-- Logo gốc nằm trọn trong vòng tròn; preview và PNG/ZIP dùng cùng hàm ghép.
+- Ảnh logo lấp đầy vòng tròn, giữ tỷ lệ và cắt phần thừa theo viền tròn; preview và PNG/ZIP dùng cùng hàm ghép.
 - Đăng xuất hủy phiên và xóa preview của khung riêng.
 
 ## GitHub và Render

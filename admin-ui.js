@@ -40,8 +40,8 @@ function imageFromBlob(blob) {
     image.src = url;
   });
 }
-function fitLogoInsideCircle(width,height,radius) {
-  const scale = 2 * radius / Math.hypot(width,height);
+function fillLogoCircle(width,height,radius) {
+  const scale = 2 * radius / Math.min(width,height);
   return {width:width*scale,height:height*scale};
 }
 async function makeAdminPng(fileObj) {
@@ -54,11 +54,14 @@ async function makeAdminPng(fileObj) {
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   ctx.beginPath(); ctx.arc(500,500,373,0,Math.PI*2);
   ctx.fillStyle = '#000000'; ctx.fill();
-  ctx.strokeStyle = '#6b7078'; ctx.lineWidth = 7; ctx.stroke();
-  // Contain the COMPLETE original rectangle, including corners, inside the disk.
-  // No recoloring, no crop, no AI redraw, no gold ring or flag over the logo.
-  const size = fitLogoInsideCircle(logo.naturalWidth,logo.naturalHeight,363);
+  // Fill the circular opening, preserving aspect ratio and cropping at its edge.
+  ctx.save();
+  ctx.clip();
+  const size = fillLogoCircle(logo.naturalWidth,logo.naturalHeight,373);
   ctx.drawImage(logo,(1000-size.width)/2,(1000-size.height)/2,size.width,size.height);
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(500,500,373,0,Math.PI*2);
+  ctx.strokeStyle = '#6b7078'; ctx.lineWidth = 7; ctx.stroke();
   ctx.drawImage(frame,0,0,1000,1000);
   return new Promise((resolve,reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Không tạo được PNG.')),'image/png'));
 }
