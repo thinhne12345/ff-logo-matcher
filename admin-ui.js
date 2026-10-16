@@ -46,24 +46,38 @@ function fillLogoCircle(width,height,radius) {
 }
 async function makeAdminPng(fileObj, batchFrame) {
   // Even a forged option or JS flag must pass the server's authenticated route.
-  const frame = batchFrame || await adminFrameImage();
+  if (!batchFrame) await adminFrameImage();
   const logo = await imageFromBlob(fileObj.file || await (await fetch(fileObj.url)).blob());
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 1000;
   const ctx = canvas.getContext('2d',{alpha:true});
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-  ctx.beginPath(); ctx.arc(500,500,373,0,Math.PI*2);
+  ctx.beginPath(); ctx.arc(500,500,441,0,Math.PI*2);
   ctx.fillStyle = '#000000'; ctx.fill();
   // Fill the circular opening, preserving aspect ratio and cropping at its edge.
   ctx.save();
   ctx.clip();
-  const size = fillLogoCircle(logo.naturalWidth,logo.naturalHeight,373);
+  const size = fillLogoCircle(logo.naturalWidth,logo.naturalHeight,441);
   ctx.drawImage(logo,(1000-size.width)/2,(1000-size.height)/2,size.width,size.height);
   ctx.restore();
-  ctx.beginPath(); ctx.arc(500,500,373,0,Math.PI*2);
-  ctx.strokeStyle = '#6b7078'; ctx.lineWidth = 7; ctx.stroke();
-  ctx.drawImage(frame,0,0,1000,1000);
+  drawAdminRing(ctx);
   return new Promise((resolve,reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Không tạo được PNG.')),'image/png'));
+}
+function drawAdminRing(ctx) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(500,500,473,0,Math.PI*2);
+  ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.stroke();
+  const gradient = ctx.createRadialGradient(500,500,441,500,500,469);
+  for (const [stop,color] of [[0,'#075985'],[0.25,'#0284c7'],[0.5,'#67e8f9'],[0.75,'#38bdf8'],[1,'#1d4ed8']]) {
+    gradient.addColorStop(stop,color);
+  }
+  ctx.beginPath(); ctx.arc(500,500,455,0,Math.PI*2);
+  ctx.lineWidth = 28; ctx.strokeStyle = gradient;
+  ctx.shadowColor = 'rgba(56,189,248,0.55)'; ctx.shadowBlur = 14; ctx.stroke();
+  ctx.beginPath(); ctx.arc(500,500,455,0,Math.PI*2);
+  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(186,230,253,0.6)';
+  ctx.shadowBlur = 0; ctx.stroke();
+  ctx.restore();
 }
 async function refreshAdminPreviews() {
   clearAdminPreviews();
@@ -125,7 +139,7 @@ async function checkAdminSession() {
     $('adminPasswordSubmit').disabled = !adminPasswordConfigured;
     if (adminSession) {
       const option = document.createElement('option'); option.value = 'admin-01';
-      option.textContent = 'Mẫu 01 · Xanh bạc (Admin)';
+      option.textContent = 'Mẫu 01 · Tròn xanh gradient (Admin)';
       if (!document.querySelector('option[value="admin-01"]')) $('frameMode').append(option);
       $('adminLogin').hidden = true; $('adminLogout').hidden = false;
       $('adminPasswordForm').hidden = true;
