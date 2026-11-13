@@ -1,5 +1,7 @@
 # Tăng tốc xuất ZIP cho FF Logo Matcher
 
+> Bản cập nhật mới có thêm mẫu 02 dành riêng cho admin. Xem `MAU-02.md` để biết danh sách tệp cần cập nhật; hướng dẫn thay hai tệp bên dưới chỉ dành cho bản tối ưu ZIP trước đó.
+
 Bản này dành cho công cụ ghép logo tại https://ff-logo-matcher-1000.onrender.com/ có nút “Tải ZIP”.
 
 - Tải và giải mã ảnh khung admin một lần cho mỗi lượt ZIP, dùng lại trong lượt đó.

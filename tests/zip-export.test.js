@@ -78,6 +78,22 @@ test('failed export waits for active work, saves no partial ZIP and can retry',a
   assert.equal(saved.length,1);
 });
 
+test('sample 02 ZIP fetches its selected frame once and passes that mode to every PNG',async()=>{
+  const {context,saved,alerts}=fixture();
+  vm.runInContext(`
+    getFrameMode=()=> 'admin-02';
+    const originalMakePng=makePng;
+    adminFrameImage=async mode=>{if(mode!=='admin-02')throw new Error('Wrong requested frame');return {call:++frameCalls};};
+    makePng=(file,preserve,bg,mode,frame)=>{
+      if(mode!=='admin-02')throw new Error('Wrong render mode');
+      return originalMakePng(file,preserve,bg,mode,frame);
+    };
+  `,context);
+  await context.downloadZip();
+  assert.equal(context.stats().frameCalls,1);
+  assert.equal(saved.length,1);assert.equal(alerts.length,0);
+});
+
 test('original logo export skips private frame requests',async()=>{
   const {context,elements,saved}=fixture();
   elements.get('preserveOriginal').checked=true;

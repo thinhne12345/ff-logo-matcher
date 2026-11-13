@@ -13,22 +13,24 @@ function clearAdminPreviews() {
 function resetAdminFrame() {
   adminSession = false;
   clearAdminPreviews();
-  const option = document.querySelector('option[value="admin-01"]');
-  if (option) option.remove();
-  if ($('frameMode').value === 'admin-01' || !$('frameMode').value) $('frameMode').value = 'vietnam';
+  const wasAdmin = isAdminFrame($('frameMode').value);
+  for (const option of document.querySelectorAll('option[value="admin-01"], option[value="admin-02"]')) option.remove();
+  if (wasAdmin || !$('frameMode').value) $('frameMode').value = 'vietnam';
   $('adminLogout').hidden = true;
   $('adminLogin').hidden = !adminGithubConfigured;
   $('adminPasswordForm').hidden = false;
   $('adminPassword').disabled = !adminPasswordConfigured;
   $('adminPasswordSubmit').disabled = !adminPasswordConfigured;
-  $('adminStatus').textContent = 'Mẫu 01 dành riêng cho admin.';
+  $('adminStatus').textContent = 'Mẫu 01 và mẫu 02 dành riêng cho admin.';
 }
-async function adminFrameImage() {
-  const response = await fetch('/api/admin/frame-01.png', {credentials:'same-origin',cache:'no-store'});
+function isAdminFrame(mode) { return mode === 'admin-01' || mode === 'admin-02'; }
+async function adminFrameImage(mode = getFrameMode()) {
+  if (!isAdminFrame(mode)) throw new Error('Mẫu admin không hợp lệ.');
+  const response = await fetch('/api/admin/frame-' + (mode === 'admin-02' ? '02' : '01') + '.png', {credentials:'same-origin',cache:'no-store'});
   if (!response.ok) {
     if (response.status === 403) { resetAdminFrame(); render(); }
     const data = await response.json();
-    throw new Error(data.error || 'Không tải được mẫu 01.');
+    throw new Error(data.error || 'Không tải được khung admin.');
   }
   return imageFromBlob(await response.blob());
 }
@@ -44,14 +46,26 @@ function fillLogoCircle(width,height,radius) {
   const scale = 2 * radius / Math.min(width,height);
   return {width:width*scale,height:height*scale};
 }
-async function makeAdminPng(fileObj, batchFrame) {
+function fitLogoInAdminFrame(width, height) {
+  // Keep the complete logo below the AF header and inside the metal corners.
+  const scale = Math.min(800 / width, 745 / height);
+  const w = width * scale, h = height * scale;
+  return {x: (1000 - w) / 2, y: 155 + (745 - h) / 2, width: w, height: h};
+}
+async function makeAdminPng(fileObj, batchFrame, mode = getFrameMode()) {
   // Even a forged option or JS flag must pass the server's authenticated route.
-  if (!batchFrame) await adminFrameImage();
+  const frame = batchFrame || await adminFrameImage(mode);
   const logo = await imageFromBlob(fileObj.file || await (await fetch(fileObj.url)).blob());
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 1000;
   const ctx = canvas.getContext('2d',{alpha:true});
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  if (mode === 'admin-02') {
+    const box = fitLogoInAdminFrame(logo.naturalWidth, logo.naturalHeight);
+    ctx.drawImage(logo, box.x, box.y, box.width, box.height);
+    ctx.drawImage(frame, 0, 0, 1000, 1000);
+    return new Promise((resolve,reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Không tạo được PNG.')),'image/png'));
+  }
   ctx.beginPath(); ctx.arc(500,500,441,0,Math.PI*2);
   ctx.fillStyle = '#000000'; ctx.fill();
   // Fill the circular opening, preserving aspect ratio and cropping at its edge.
@@ -81,17 +95,18 @@ function drawAdminRing(ctx) {
 }
 async function refreshAdminPreviews() {
   clearAdminPreviews();
-  if (exportPreservesOriginal() || getFrameMode() !== 'admin-01') return;
+  const mode = getFrameMode();
+  if (exportPreservesOriginal() || !isAdminFrame(mode)) return;
   const generation = adminPreviewGeneration;
   let frame;
-  try { frame = await adminFrameImage(); }
+  try { frame = await adminFrameImage(mode); }
   catch (error) { if (generation === adminPreviewGeneration) $('adminStatus').textContent = error.message; return; }
   // Sequential rendering bounds memory for large team lists.
   for (let i=0;i<teams.length;i++) {
     if (generation !== adminPreviewGeneration) return;
     if (!teams[i].file) continue;
     try {
-      const blob = await makeAdminPng(teams[i].file, frame);
+      const blob = await makeAdminPng(teams[i].file, frame, mode);
       if (generation !== adminPreviewGeneration) return;
       const target = $(`adminPreview${i}`);
       if (!target) continue;
@@ -138,19 +153,21 @@ async function checkAdminSession() {
     $('adminPassword').disabled = !adminPasswordConfigured;
     $('adminPasswordSubmit').disabled = !adminPasswordConfigured;
     if (adminSession) {
-      const option = document.createElement('option'); option.value = 'admin-01';
-      option.textContent = 'Mẫu 01 · Tròn xanh gradient (Admin)';
-      if (!document.querySelector('option[value="admin-01"]')) $('frameMode').append(option);
+      for (const [value, label] of [['admin-01','Mẫu 01 · Tròn xanh gradient (Admin)'], ['admin-02','Mẫu 02 · Khung đỏ bạc AF (Admin)']]) {
+        if (document.querySelector('option[value="' + value + '"]')) continue;
+        const option = document.createElement('option'); option.value = value;
+        option.textContent = label; $('frameMode').append(option);
+      }
       $('adminLogin').hidden = true; $('adminLogout').hidden = false;
       $('adminPasswordForm').hidden = true;
-      $('adminStatus').textContent = 'Đã đăng nhập admin · Mẫu 01 đã mở khóa.';
+      $('adminStatus').textContent = 'Đã đăng nhập admin · Mẫu 01 và mẫu 02 đã mở khóa.';
       $('frameMode').value = 'admin-01';
       $('preserveOriginal').checked = false;
       $('useBgLogo').checked = false;
       syncFrameModeAvailability(); syncBgLogoAvailability(); render();
     } else {
       $('adminPasswordForm').hidden = false;
-      $('adminStatus').textContent = adminPasswordConfigured ? 'Nhập mật khẩu để mở mẫu 01 của admin.' : (adminGithubConfigured ? 'Đăng nhập GitHub để mở mẫu 01 của admin.' : 'Mẫu 01 đang chờ cấu hình đăng nhập admin.');
+      $('adminStatus').textContent = adminPasswordConfigured ? 'Nhập mật khẩu để mở mẫu 01 và mẫu 02 của admin.' : (adminGithubConfigured ? 'Đăng nhập GitHub để mở mẫu 01 và mẫu 02 của admin.' : 'Khung admin đang chờ cấu hình đăng nhập admin.');
       $('adminLogin').hidden = !adminGithubConfigured;
     }
   } catch (error) { $('adminStatus').textContent = error.message; }

@@ -40,6 +40,15 @@ return http.createServer(async(req,res)=>{
   try { url=new URL(req.url,'http://localhost'); decodeURIComponent(url.pathname); }
   catch { return json(res,400,{error:'Invalid URL'}); }
   if(await auth.handle(req,res,url))return;
+  if(url.pathname==='/api/admin/frame-02.png'){
+    res.setHeader('Cache-Control','private, no-store');
+    if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
+    if(!auth.isAdmin(req))return json(res,403,{error:'Hãy đăng nhập tài khoản admin để dùng mẫu 02.'});
+    try {
+      const image=fs.readFileSync(path.join(root,'private','frame-02.png'));
+      res.writeHead(200,{'Content-Type':'image/png'});return res.end(image);
+    } catch { return json(res,503,{error:'Mẫu 02 chưa được cấu hình trên máy chủ.'}); }
+  }
   if(url.pathname==='/api/admin/frame-01.png'){
     res.setHeader('Cache-Control','private, no-store');
     if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});

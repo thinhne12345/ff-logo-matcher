@@ -43,12 +43,13 @@ async function fixture(t,userId=130863341,configured=true,passwordHash=testHash,
 test('anonymous users cannot fetch private files or bypass admin with forged flags',async t=>{
   const {get}=await fixture(t);
   assert.equal((await get('/api/admin/session')).status,200);
-  for(const route of ['/api/admin/frame-01.png','/api/admin/frame-01.png?admin=true']){
+  for(const route of ['/api/admin/frame-01.png','/api/admin/frame-01.png?admin=true','/api/admin/frame-02.png','/api/admin/frame-02.png?admin=true']){
     const response=await get(route,{headers:{cookie:'ff_admin=true; admin=true'}});
     assert.equal(response.status,403);assert.match(response.headers.get('cache-control'),/no-store/);
   }
   for(const route of ['/.env','/server.js','/admin-auth.js','/private/frame-01.enc','/private/admin-password.json','/private/frame-key.json','/%2eenv','/..%2f.env','/tests/admin.test.js']) assert.equal((await get(route)).status,404,route);
   assert.equal((await get('/%zz')).status,400);
+  assert.equal((await get('/private/frame-02.png')).status,404);
   for(const route of ['/','/app.js','/admin-ui.js','/styles.css'])assert.equal((await get(route)).status,200);
 });
 test('only exact GitHub numeric owner ID is accepted',async t=>{
@@ -69,9 +70,16 @@ test('owner login, PKCE, frame decryption and logout revocation',async t=>{
   const frame=await get('/api/admin/frame-01.png',{headers});
   assert.equal(frame.status,200);assert.equal(frame.headers.get('content-type'),'image/png');
   assert.deepEqual(Buffer.from(await frame.arrayBuffer()),plaintext);
+  const frame02=await get('/api/admin/frame-02.png',{headers});
+  assert.equal(frame02.status,200);
+  assert.equal(frame02.headers.get('content-type'),'image/png');
+  assert.match(frame02.headers.get('cache-control'),/no-store/);
+  assert.deepEqual(Buffer.from(await frame02.arrayBuffer()),fs.readFileSync(path.join(__dirname,'../private/frame-02.png')));
+  assert.equal((await get('/api/admin/frame-02.png',{method:'POST',headers})).status,405);
   assert.equal((await get('/api/admin/logout',{method:'POST',headers:{...headers,origin:'https://evil.example'}})).status,403);
   assert.equal((await get('/api/admin/logout',{method:'POST',headers:{...headers,origin:'http://localhost:3000'}})).status,200);
   assert.equal((await get('/api/admin/frame-01.png',{headers})).status,403);
+  assert.equal((await get('/api/admin/frame-02.png',{headers})).status,403);
   assert.equal((await get(`/auth/github/callback?state=${flow.state}&code=test`,{headers:{cookie:flow.cookie}})).status,400);
 });
 test('OAuth rejects missing cookie, invalid state and missing configuration',async t=>{
@@ -91,6 +99,31 @@ test('logo fills circular medallion for square, portrait and landscape without s
     assert.ok(Math.abs(Math.min(result.width,result.height)-746)<1e-10);
     assert.ok(Math.abs(result.width/result.height-width/height)<1e-10);
   }
+});
+
+test('sample 02 preserves complete square, wide and tall logos inside the opening',()=>{
+  const source=fs.readFileSync(path.join(__dirname,'../admin-ui.js'),'utf8').replace(/initAdmin\(\);\s*$/,'');
+  const context=vm.createContext({});vm.runInContext(source,context);
+  for(const [w,h] of [[1000,1000],[2400,300],[200,1600]]){
+    const box=context.fitLogoInAdminFrame(w,h);
+    assert.ok(box.x>=100 && box.y>=155);
+    assert.ok(box.x+box.width<=900 && box.y+box.height<=900);
+    assert.ok(Math.abs(box.width/box.height-w/h)<1e-10);
+    assert.ok(Math.abs(box.x+box.width/2-500)<1e-10);
+  }
+});
+
+test('sample 02 draws the full logo then overlays the supplied frame on a transparent square',async()=>{
+  const calls=[],logo={naturalWidth:2000,naturalHeight:400},frame={kind:'frame02'};
+  const canvas={getContext:()=>({drawImage:(...args)=>calls.push(args)}),toBlob:callback=>callback(new Blob(['png']))};
+  const context=vm.createContext({Blob,document:{createElement:()=>canvas},logo});
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../admin-ui.js'),'utf8').replace(/initAdmin\(\);\s*$/,''),context);
+  vm.runInContext('imageFromBlob=async()=>logo',context);
+  await context.makeAdminPng({file:new Blob()},frame,'admin-02');
+  assert.equal(canvas.width,1000);assert.equal(canvas.height,1000);
+  assert.equal(calls.length,2);
+  assert.deepEqual(calls[0],[logo,100,447.5,800,160]);
+  assert.deepEqual(calls[1],[frame,0,0,1000,1000]);
 });
 
 test('password login works without OAuth or environment frame key and revokes private frame access',async t=>{

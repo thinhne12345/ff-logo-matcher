@@ -131,8 +131,8 @@ function renderHeadpics(){
     let logoCell;
     if(!t.file){
       logoCell=`<label class="row-file">Ch&#7885;n logo<input type="file" accept="image/png,image/jpeg,image/webp" onchange="pickForTeam(${i},this.files[0])"></label>`;
-    }else if(!original&&getFrameMode()==='admin-01'){
-      logoCell=`<div class="admin-logo-preview"><img id="adminPreview${i}" alt="Mẫu 01 · ${esc(t.file.name)}"></div>`;
+    }else if(!original&&['admin-01','admin-02'].includes(getFrameMode())){
+      logoCell=`<div class="admin-logo-preview"><img id="adminPreview${i}" alt="Mẫu ${getFrameMode() === 'admin-02' ? '02' : '01'} · ${esc(t.file.name)}"></div>`;
     }else if(original){
       logoCell=`<div class="original-logo-preview"><img class="preview" src="${t.file.url}" alt="${esc(t.file.name)}"></div>`;
     }else{
@@ -249,9 +249,9 @@ function clearBgLogo(){
  *  default                â†’ dark gradient bg + circular clip + frame/flag theo frameMode
  */
 function makePng(fileObj,preserveOriginal=exportPreservesOriginal(),useBgLogo=bgLogoEnabled(),frameMode=getFrameMode(),batchFrame){
-  if(!preserveOriginal&&frameMode==='admin-01'){
-    if(typeof makeAdminPng!=='function')return Promise.reject(new Error('Mẫu 01 chưa sẵn sàng.'));
-    return makeAdminPng(fileObj,batchFrame);
+  if(!preserveOriginal&&['admin-01','admin-02'].includes(frameMode)){
+    if(typeof makeAdminPng!=='function')return Promise.reject(new Error('Khung admin chưa sẵn sàng.'));
+    return makeAdminPng(fileObj,batchFrame,frameMode);
   }
   return new Promise((resolve,reject)=>{
     const logoImg=new Image();
@@ -339,7 +339,7 @@ async function downloadZip(){
   $('aiStatus').textContent='Đang chuẩn bị ảnh để xuất ZIP…';
   try{
     // Authorize once per export; reuse the decoded frame only within this batch.
-    const frame=!preserve&&fm==='admin-01'?await adminFrameImage():undefined;
+    const frame=!preserve&&['admin-01','admin-02'].includes(fm)?await adminFrameImage(fm):undefined;
     // Limit canvas memory while overlapping image decoding and PNG encoding.
     for(let start=0;start<matched.length;start+=3){
       const results=await Promise.allSettled(matched.slice(start,start+3).map(async(t,index)=>{
