@@ -106,6 +106,7 @@ test('sample 02 preserves complete square, wide and tall logos inside the openin
   const context=vm.createContext({});vm.runInContext(source,context);
   for(const [w,h] of [[1000,1000],[2400,300],[200,1600]]){
     const box=context.fitLogoInAdminFrame(w,h);
+    assert.ok(Math.hypot(box.width/2,box.height/2)<=372.5*0.97+1e-10);
     assert.ok(box.x>=100 && box.y>=155);
     assert.ok(box.x+box.width<=900 && box.y+box.height<=900);
     assert.ok(Math.abs(box.width/box.height-w/h)<1e-10);
@@ -115,14 +116,17 @@ test('sample 02 preserves complete square, wide and tall logos inside the openin
 
 test('sample 02 draws the full logo then overlays the supplied frame on a transparent square',async()=>{
   const calls=[],logo={naturalWidth:2000,naturalHeight:400},frame={kind:'frame02'};
-  const canvas={getContext:()=>({drawImage:(...args)=>calls.push(args)}),toBlob:callback=>callback(new Blob(['png']))};
+  const operations=[];
+  const canvas={getContext:()=>({save:()=>operations.push('save'),beginPath:()=>{},arc:(...args)=>operations.push(args),clip:()=>operations.push('clip'),fillRect:()=>operations.push('fill'),restore:()=>operations.push('restore'),drawImage:(...args)=>calls.push(args)}),toBlob:callback=>callback(new Blob(['png']))};
   const context=vm.createContext({Blob,document:{createElement:()=>canvas},logo});
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../admin-ui.js'),'utf8').replace(/initAdmin\(\);\s*$/,''),context);
   vm.runInContext('imageFromBlob=async()=>logo',context);
   await context.makeAdminPng({file:new Blob()},frame,'admin-02');
   assert.equal(canvas.width,1000);assert.equal(canvas.height,1000);
   assert.equal(calls.length,2);
-  assert.deepEqual(calls[0],[logo,100,447.5,800,160]);
+  const box=context.fitLogoInAdminFrame(2000,400);
+  assert.deepEqual(calls[0],[logo,box.x,box.y,box.width,box.height]);
+  assert.deepEqual(operations,['save',[500,527.5,372.5,0,Math.PI*2],'clip','fill','restore']);
   assert.deepEqual(calls[1],[frame,0,0,1000,1000]);
 });
 

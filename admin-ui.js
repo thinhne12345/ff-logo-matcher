@@ -47,10 +47,10 @@ function fillLogoCircle(width,height,radius) {
   return {width:width*scale,height:height*scale};
 }
 function fitLogoInAdminFrame(width, height) {
-  // Keep the complete logo below the AF header and inside the metal corners.
-  const scale = Math.min(800 / width, 745 / height);
+  // Keep the complete logo inside the circle, as in background-logo mode.
+  const scale = (745 * 0.97) / Math.hypot(width, height);
   const w = width * scale, h = height * scale;
-  return {x: (1000 - w) / 2, y: 155 + (745 - h) / 2, width: w, height: h};
+  return {x: (1000 - w) / 2, y: 527.5 - h / 2, width: w, height: h};
 }
 async function makeAdminPng(fileObj, batchFrame, mode = getFrameMode()) {
   // Even a forged option or JS flag must pass the server's authenticated route.
@@ -61,8 +61,19 @@ async function makeAdminPng(fileObj, batchFrame, mode = getFrameMode()) {
   const ctx = canvas.getContext('2d',{alpha:true});
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   if (mode === 'admin-02') {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(500, 527.5, 372.5, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(127.5, 155, 745, 745);
+    if (typeof bgLogoEnabled === 'function' && bgLogoEnabled() && bgLogoImage) {
+      const size = fillLogoCircle(bgLogoImage.width, bgLogoImage.height, 372.5);
+      ctx.drawImage(bgLogoImage, 500 - size.width / 2, 527.5 - size.height / 2, size.width, size.height);
+    }
     const box = fitLogoInAdminFrame(logo.naturalWidth, logo.naturalHeight);
     ctx.drawImage(logo, box.x, box.y, box.width, box.height);
+    ctx.restore();
     ctx.drawImage(frame, 0, 0, 1000, 1000);
     return new Promise((resolve,reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Không tạo được PNG.')),'image/png'));
   }
