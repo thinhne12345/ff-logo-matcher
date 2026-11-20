@@ -2,7 +2,7 @@
 
 Đăng nhập ở “Khung riêng của admin”, sau đó chọn “Mẫu 02 · Khung đỏ bạc AF (Admin)” trong danh sách kiểu khung. Mẫu 01 vẫn được giữ nguyên.
 
-Mẫu 02 dùng đúng ảnh PNG được cung cấp, giữ nền trong suốt. Logo được thu phóng giữ tỷ lệ, hiển thị đầy đủ ở vùng giữa dưới chữ AF; ảnh khung được vẽ bên trên logo. Preview, tải từng PNG và tải ZIP dùng chung hàm ghép, xuất 1000 × 1000 pixel. Khi tải ZIP, khung được lấy một lần cho mỗi lượt xuất.
+Mẫu 02 đặt logo trong viền tròn đỏ bạc dưới chữ AF. Vùng có nội dung của logo được căn giữa và phóng lớn theo đúng tỷ lệ để giữ trọn các chi tiết. Nếu bật “Logo nền”, ảnh nền phủ kín phần tròn phía sau logo. Họa tiết AF được vẽ trên cùng và phần còn lại trong suốt. Bản xem trước, tải từng PNG và tải ZIP dùng chung hàm ghép, xuất 1000 × 1000 pixel. Khi tải ZIP, khung được lấy một lần cho mỗi lượt xuất.
 
 Ảnh nằm trong `private/frame-02.png`. Chỉ endpoint `/api/admin/frame-02.png` trả ảnh khi phiên admin hợp lệ, với `Cache-Control: private, no-store`. Đường dẫn trực tiếp `/private/frame-02.png` không được phục vụ. Đăng xuất thu hồi quyền truy cập và bỏ cả hai lựa chọn khung riêng.
 

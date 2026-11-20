@@ -105,29 +105,48 @@ test('sample 02 preserves complete square, wide and tall logos inside the openin
   const source=fs.readFileSync(path.join(__dirname,'../admin-ui.js'),'utf8').replace(/initAdmin\(\);\s*$/,'');
   const context=vm.createContext({});vm.runInContext(source,context);
   for(const [w,h] of [[1000,1000],[2400,300],[200,1600]]){
-    const box=context.fitLogoInAdminFrame(w,h);
-    assert.ok(Math.hypot(box.width/2,box.height/2)<=372.5*0.97+1e-10);
-    assert.ok(box.x>=100 && box.y>=155);
-    assert.ok(box.x+box.width<=900 && box.y+box.height<=900);
+    const box=context.fitLogoInAdminFrame(w,h,{x:w/2,y:h/2,radius:Math.hypot(w,h)/2});
+    assert.ok(Math.abs(Math.hypot(box.width/2,box.height/2)-410*0.97)<1e-10);
     assert.ok(Math.abs(box.width/box.height-w/h)<1e-10);
     assert.ok(Math.abs(box.x+box.width/2-500)<1e-10);
+    assert.ok(Math.abs(box.y+box.height/2-558)<1e-10);
   }
+});
+
+test('sample 02 centers and enlarges visible pixels with transparent padding',()=>{
+  const width=20,height=20,data=new Uint8ClampedArray(width*height*4);
+  for(const [x,y] of [[3,10],[6,7],[9,10],[6,13]]){
+    data[(y*width+x)*4+3]=x===9?1:255;
+  }
+  const canvas={getContext:()=>({drawImage(){},getImageData:()=>({data})})};
+  const context=vm.createContext({document:{createElement:()=>canvas}});
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../admin-ui.js'),'utf8').replace(/initAdmin\(\);\s*$/,''),context);
+  const visible=context.measureAdminLogo({naturalWidth:width,naturalHeight:height});
+  assert.equal(visible.x,6.5);
+  assert.equal(visible.y,10.5);
+  assert.equal(visible.radius,Math.hypot(3.5,0.5));
+  const box=context.fitLogoInAdminFrame(width,height,visible);
+  assert.ok(box.width>1000);
+  assert.ok(Math.abs(box.x+visible.x*box.width/width-500)<1e-10);
 });
 
 test('sample 02 draws the full logo then overlays the supplied frame on a transparent square',async()=>{
   const calls=[],logo={naturalWidth:2000,naturalHeight:400},frame={kind:'frame02'};
   const operations=[];
-  const canvas={getContext:()=>({save:()=>operations.push('save'),beginPath:()=>{},arc:(...args)=>operations.push(args),clip:()=>operations.push('clip'),fillRect:()=>operations.push('fill'),restore:()=>operations.push('restore'),drawImage:(...args)=>calls.push(args)}),toBlob:callback=>callback(new Blob(['png']))};
-  const context=vm.createContext({Blob,document:{createElement:()=>canvas},logo});
+  const canvas={getContext:()=>({save:()=>operations.push('save'),beginPath:()=>{},arc:(...args)=>operations.push(args),clip:()=>operations.push('clip'),fillRect:()=>operations.push('fill'),restore:()=>operations.push('restore'),stroke:()=>operations.push('stroke'),drawImage:(...args)=>calls.push(args)}),toBlob:callback=>callback(new Blob(['png']))};
+  const background={width:500,height:300};
+  const context=vm.createContext({Blob,document:{createElement:()=>canvas},logo,bgLogoEnabled:()=>true,bgLogoImage:background});
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../admin-ui.js'),'utf8').replace(/initAdmin\(\);\s*$/,''),context);
-  vm.runInContext('imageFromBlob=async()=>logo',context);
+  vm.runInContext('imageFromBlob=async()=>logo; measureAdminLogo=()=>({x:1000,y:200,radius:Math.hypot(1000,200)})',context);
   await context.makeAdminPng({file:new Blob()},frame,'admin-02');
   assert.equal(canvas.width,1000);assert.equal(canvas.height,1000);
-  assert.equal(calls.length,2);
-  const box=context.fitLogoInAdminFrame(2000,400);
-  assert.deepEqual(calls[0],[logo,box.x,box.y,box.width,box.height]);
-  assert.deepEqual(operations,['save',[500,527.5,372.5,0,Math.PI*2],'clip','fill','restore']);
-  assert.deepEqual(calls[1],[frame,0,0,1000,1000]);
+  assert.equal(calls.length,3);
+  const backgroundWidth=500*(820/300);
+  assert.deepEqual(calls[0],[background,500-backgroundWidth/2,148,backgroundWidth,820]);
+  const box=context.fitLogoInAdminFrame(2000,400,{x:1000,y:200,radius:Math.hypot(1000,200)});
+  assert.deepEqual(calls[1],[logo,box.x,box.y,box.width,box.height]);
+  assert.deepEqual(operations,['save',[500,558,410,0,Math.PI*2],'clip','fill','restore',[500,558,415,0,Math.PI*2],'stroke','stroke']);
+  assert.deepEqual(calls[2],[frame,0,0,1000,1000]);
 });
 
 test('password login works without OAuth or environment frame key and revokes private frame access',async t=>{

@@ -46,11 +46,81 @@ function fillLogoCircle(width,height,radius) {
   const scale = 2 * radius / Math.min(width,height);
   return {width:width*scale,height:height*scale};
 }
-function fitLogoInAdminFrame(width, height) {
-  // Keep the complete logo inside the circle, as in background-logo mode.
-  const scale = (745 * 0.97) / Math.hypot(width, height);
-  const w = width * scale, h = height * scale;
-  return {x: (1000 - w) / 2, y: 527.5 - h / 2, width: w, height: h};
+const admin02Circle = {x: 500, y: 558, radius: 410};
+
+function measureAdminLogo(logo) {
+  const {naturalWidth: width, naturalHeight: height} = logo;
+  const fullImage = {x: width / 2, y: height / 2, radius: Math.hypot(width, height) / 2};
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', {willReadFrequently: true});
+  let data;
+  try {
+    ctx.drawImage(logo, 0, 0);
+    ({data} = ctx.getImageData(0, 0, width, height));
+  } catch {
+    return fullImage;
+  } finally {
+    canvas.width = canvas.height = 0;
+  }
+
+  const pixels = new Uint32Array(data.buffer, data.byteOffset, width * height);
+  const edgePixel = pixels[0];
+  let solidEdge = data[3] === 255;
+  let left = width, top = height, right = 0, bottom = 0;
+  const rows = [];
+  for (let y = 0; y < height; y++) {
+    const row = y * width;
+    if (solidEdge && (y === 0 || y === height - 1)) {
+      solidEdge = pixels.subarray(row, row + width).every(pixel => pixel === edgePixel);
+    }
+    solidEdge = solidEdge && pixels[row] === edgePixel && pixels[row + width - 1] === edgePixel;
+    const rowStart = row * 4;
+    let start = 0, end = width;
+    while (start < end && data[rowStart + start * 4 + 3] === 0) start++;
+    if (start === end) continue;
+    while (data[rowStart + (end - 1) * 4 + 3] === 0) end--;
+    rows.push({y, start, end});
+    left = Math.min(left, start);
+    right = Math.max(right, end);
+    top = Math.min(top, y);
+    bottom = y + 1;
+  }
+  if (!rows.length) return fullImage;
+
+  const x = (left + right) / 2, y = (top + bottom) / 2;
+  let radius = 0;
+  // Include the outer corners of the visible pixels, including translucent details.
+  for (const row of rows) {
+    const dx = Math.max(x - row.start, row.end - x);
+    const dy = Math.max(y - row.y, row.y + 1 - y);
+    radius = Math.max(radius, Math.hypot(dx, dy));
+  }
+  const background = solidEdge ? `rgb(${data[0]}, ${data[1]}, ${data[2]})` : '#ffffff';
+  return {x, y, radius, background};
+}
+
+function fitLogoInAdminFrame(width, height, visible) {
+  const scale = admin02Circle.radius * 0.97 / visible.radius;
+  return {
+    x: admin02Circle.x - visible.x * scale,
+    y: admin02Circle.y - visible.y * scale,
+    width: width * scale,
+    height: height * scale
+  };
+}
+
+function drawAdmin02Ring(ctx) {
+  const {x, y, radius} = admin02Circle;
+  ctx.beginPath();
+  ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
+  ctx.lineWidth = 12;
+  ctx.strokeStyle = '#810c19';
+  ctx.stroke();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#d5d9df';
+  ctx.stroke();
 }
 async function makeAdminPng(fileObj, batchFrame, mode = getFrameMode()) {
   // Even a forged option or JS flag must pass the server's authenticated route.
@@ -61,19 +131,22 @@ async function makeAdminPng(fileObj, batchFrame, mode = getFrameMode()) {
   const ctx = canvas.getContext('2d',{alpha:true});
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   if (mode === 'admin-02') {
+    const {x, y, radius} = admin02Circle;
+    const visible = measureAdminLogo(logo);
+    const box = fitLogoInAdminFrame(logo.naturalWidth, logo.naturalHeight, visible);
     ctx.save();
     ctx.beginPath();
-    ctx.arc(500, 527.5, 372.5, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.clip();
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(127.5, 155, 745, 745);
+    ctx.fillStyle = visible.background || '#ffffff';
+    ctx.fillRect(x - radius, y - radius, 2 * radius, 2 * radius);
     if (typeof bgLogoEnabled === 'function' && bgLogoEnabled() && bgLogoImage) {
-      const size = fillLogoCircle(bgLogoImage.width, bgLogoImage.height, 372.5);
-      ctx.drawImage(bgLogoImage, 500 - size.width / 2, 527.5 - size.height / 2, size.width, size.height);
+      const size = fillLogoCircle(bgLogoImage.width, bgLogoImage.height, radius);
+      ctx.drawImage(bgLogoImage, x - size.width / 2, y - size.height / 2, size.width, size.height);
     }
-    const box = fitLogoInAdminFrame(logo.naturalWidth, logo.naturalHeight);
     ctx.drawImage(logo, box.x, box.y, box.width, box.height);
     ctx.restore();
+    drawAdmin02Ring(ctx);
     ctx.drawImage(frame, 0, 0, 1000, 1000);
     return new Promise((resolve,reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Không tạo được PNG.')),'image/png'));
   }
